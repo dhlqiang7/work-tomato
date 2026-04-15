@@ -73,7 +73,6 @@ router.get('/dashboard', async (req, res) => {
     )
     let streak = 0
     const d = new Date()
-    const todayStr = d.toDateString()
     // 今天若无完成记录，从昨天开始检查
     if (!doneDates.has(todayStr)) {
       d.setDate(d.getDate() - 1)
