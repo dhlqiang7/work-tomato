@@ -1,61 +1,56 @@
 @echo off
-set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
-set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
-chcp 65001 >/dev/null 2>nul
+chcp 65001 >nul 2>nul
 setlocal EnableDelayedExpansion
 
+set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
+set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
+
 echo.
-echo   Tomato - 打包为 EXE
+echo   Tomato - Build EXE
 echo.
 
-:: 检查 Node.js
-where node >/dev/null 2>nul
+where node >nul 2>nul
 if %errorlevel% neq 0 (
-    echo   未检测到 Node.js，请先安装 Node.js 18+
+    echo   [ERROR] Node.js not found, please install Node.js 18+
     pause
     exit /b 1
 )
 
-:: 检查是否已安装依赖
 if not exist "%~dp0node_modules\electron" (
-    echo   [1/3] 安装依赖...
+    echo   [1/3] Installing dependencies...
     call npm install
-    if %errorlevel% neq 0 (
-        echo   依赖安装失败
+    if !errorlevel! neq 0 (
+        echo   [ERROR] npm install failed
         pause
         exit /b 1
     )
 ) else (
-    echo   [1/3] 依赖已就绪
+    echo   [1/3] Dependencies OK
 )
 
-:: 清理旧构建
 if exist "%~dp0dist" (
-    echo   清理旧构建...
-    rd /s /q "%~dp0dist"
+    echo   Cleaning old build...
+    rd /s /q "%~dp0dist" 2>nul
 )
 if exist "%~dp0dist-electron" (
-    rd /s /q "%~dp0dist-electron"
+    rd /s /q "%~dp0dist-electron" 2>nul
 )
 
-:: 构建前端
-echo   [2/3] 构建前端资源...
+echo   [2/3] Building frontend...
 call npx vite build
-if %errorlevel% neq 0 (
-    echo   前端构建失败
+if !errorlevel! neq 0 (
+    echo   [ERROR] Frontend build failed
     pause
     exit /b 1
 )
-echo   前端构建完成
+echo   Frontend build done
 
-:: 打包 Electron
-echo   [3/3] 打包 Electron 应用...
-echo   （使用华为镜像下载构建工具...）
+echo   [3/3] Packaging Electron app...
 call npx electron-builder --win
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo.
-    echo   打包失败
-    echo   请检查网络连接，或手动设置镜像后重试：
+    echo   [ERROR] Packaging failed
+    echo   Try set mirror manually:
     echo   set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
     echo   set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
     pause
@@ -63,11 +58,13 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo   打包成功！
+echo   Build SUCCESS!
 echo.
-echo   安装包位置：
-for %%f in (dist-electron\*.exe) do echo   %%f
-echo.
-echo   可直接双击 exe 文件安装使用。
+if exist "%~dp0dist-electron" (
+    echo   Output:
+    for %%%%f in ("%~dp0dist-electron\*.exe") do echo   %%%%f
+) else (
+    echo   No output found
+)
 echo.
 pause
