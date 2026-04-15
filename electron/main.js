@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -84,7 +84,7 @@ function showWindow() {
 // ====== 后端服务 ======
 async function startBackend() {
   const serverPath = path.join(__dirname, '../server/index.js')
-  const { startServer } = await import(serverPath)
+  const { startServer } = await import(pathToFileURL(serverPath).href)
   server = await startServer({ silent: true })
   serverPort = server.address().port
 }
