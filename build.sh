@@ -4,6 +4,10 @@
 set -e
 cd "$(dirname "$0")"
 
+# 国内镜像加速
+export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+export ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/binary.html?path=electron-builder-binaries/
+
 echo ""
 echo "  🍅 Tomato - 打包桌面应用"
 echo ""

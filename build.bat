@@ -1,4 +1,6 @@
 @echo off
+set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+set ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/binary.html?path=electron-builder-binaries/
 chcp 65001 >/dev/null 2>nul
 setlocal EnableDelayedExpansion
 
@@ -48,14 +50,14 @@ echo   前端构建完成
 
 :: 打包 Electron
 echo   [3/3] 打包 Electron 应用...
-echo   （首次打包会下载 Electron 二进制，请耐心等待）
+echo   （使用国内镜像下载构建工具...）
 call npx electron-builder --win
 if %errorlevel% neq 0 (
     echo.
     echo   打包失败
-    echo   如果是网络问题，可尝试设置国内镜像：
+    echo   请检查网络连接，或手动设置镜像后重试：
     echo   set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-    echo   然后重新运行此脚本
+    echo   set ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/binary.html?path=electron-builder-binaries/
     pause
     exit /b 1
 )
