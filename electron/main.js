@@ -27,7 +27,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Tomato - 个人工作助理',
-    icon: path.join(__dirname, 'icon.ico'),
+    icon: path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     frame: false,                        // 无边框
     backgroundColor: '#FBF8F4',
     webPreferences: {
@@ -53,7 +53,7 @@ async function createWindow() {
 // ====== 系统托盘 ======
 function createTray() {
   // 按平台选择图标格式
-  const iconFile = 'icon.ico'
+  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png'
   const icon = nativeImage.createFromPath(path.join(__dirname, iconFile))
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 
@@ -120,7 +120,7 @@ app.on('before-quit', () => {
     server = null
   }
   if (tray) {
-    tray.destroy()
+    try { tray.destroy() } catch {}
     tray = null
   }
 })
@@ -138,11 +138,11 @@ app.on('browser-window-created', (_, win) => {
 // 确保进程退出时关闭服务器
 process.on('SIGINT', () => {
   isQuitting = true
-  if (server) server.close()
-  app.quit()
+  if (server) server.close(() => app.quit())
+  else app.quit()
 })
 process.on('SIGTERM', () => {
   isQuitting = true
-  if (server) server.close()
-  app.quit()
+  if (server) server.close(() => app.quit())
+  else app.quit()
 })

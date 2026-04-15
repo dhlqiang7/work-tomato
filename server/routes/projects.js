@@ -35,12 +35,16 @@ router.get('/', async (req, res) => {
 // 创建项目
 router.post('/', async (req, res) => {
   try {
+    const title = (req.body.title || '').trim()
+    if (!title) return res.status(400).json({ error: '项目名称不能为空' })
+    if (title.length > 100) return res.status(400).json({ error: '项目名称过长（最多100字）' })
+
     const now = new Date().toISOString()
     const item = {
       id: uuidv4(),
-      title: req.body.title || '未命名项目',
-      description: req.body.description || '',
-      relatedPeople: req.body.relatedPeople || [],
+      title,
+      description: (req.body.description || '').slice(0, 5000),
+      relatedPeople: Array.isArray(req.body.relatedPeople) ? req.body.relatedPeople.slice(0, 20) : [],
       color: req.body.color || '#3498DB',
       status: 'active',
       createdAt: now,
@@ -57,14 +61,16 @@ router.post('/', async (req, res) => {
 const PROJECT_UPDATE_FIELDS = ['title', 'description', 'relatedPeople', 'color', 'status']
 
 router.put('/:id', async (req, res) => {
-  const updates = {}
-  for (const key of PROJECT_UPDATE_FIELDS) {
-    if (req.body[key] !== undefined) updates[key] = req.body[key]
-  }
-  if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
-  const updated = await projects.update(req.params.id, updates)
-  if (!updated) return res.status(404).json({ error: '项目不存在' })
-  res.json(updated)
+  try {
+    const updates = {}
+    for (const key of PROJECT_UPDATE_FIELDS) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key]
+    }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
+    const updated = await projects.update(req.params.id, updates)
+    if (!updated) return res.status(404).json({ error: '项目不存在' })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 删除项目

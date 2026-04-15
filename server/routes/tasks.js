@@ -78,16 +78,20 @@ router.get('/:id', async (req, res) => {
 // 创建任务
 router.post('/', async (req, res) => {
   try {
+    const title = (req.body.title || '').trim()
+    if (!title) return res.status(400).json({ error: '标题不能为空' })
+    if (title.length > 200) return res.status(400).json({ error: '标题过长（最多200字）' })
+
     const now = new Date().toISOString()
     const item = {
       id: uuidv4(),
-      title: req.body.title || '未命名任务',
-      description: req.body.description || '',
+      title,
+      description: (req.body.description || '').slice(0, 5000),
       projectId: req.body.projectId || 'default',
       priority: req.body.priority || 'P2',
       status: 'pending',
-      tags: req.body.tags || [],
-      relatedPeople: req.body.relatedPeople || [],
+      tags: Array.isArray(req.body.tags) ? req.body.tags.slice(0, 20) : [],
+      relatedPeople: Array.isArray(req.body.relatedPeople) ? req.body.relatedPeople.slice(0, 20) : [],
       deadline: req.body.deadline || null,
       reminderDismissed: false,
       reminderSnoozedUntil: null,
@@ -112,54 +116,68 @@ const TASK_UPDATE_FIELDS = ['title', 'description', 'projectId', 'priority', 'st
   'estimatedPomodoros', 'completedPomodoros', 'totalFocusMinutes']
 
 router.put('/:id', async (req, res) => {
-  const updates = {}
-  for (const key of TASK_UPDATE_FIELDS) {
-    if (req.body[key] !== undefined) updates[key] = req.body[key]
-  }
-  // 校验 status 合法值
-  if (updates.status && !['pending', 'active', 'done', 'archived'].includes(updates.status)) {
-    return res.status(400).json({ error: '无效的状态值' })
-  }
-  if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
-  const updated = await tasks.update(req.params.id, updates)
-  if (!updated) return res.status(404).json({ error: '任务不存在' })
-  res.json(updated)
+  try {
+    const updates = {}
+    for (const key of TASK_UPDATE_FIELDS) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key]
+    }
+    // 校验 status 合法值
+    if (updates.status && !['pending', 'active', 'done', 'archived'].includes(updates.status)) {
+      return res.status(400).json({ error: '无效的状态值' })
+    }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
+    const updated = await tasks.update(req.params.id, updates)
+    if (!updated) return res.status(404).json({ error: '任务不存在' })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 删除任务
 router.delete('/:id', async (req, res) => {
-  const ok = await tasks.delete(req.params.id)
-  if (!ok) return res.status(404).json({ error: '任务不存在' })
-  res.json({ success: true })
+  try {
+    const ok = await tasks.delete(req.params.id)
+    if (!ok) return res.status(404).json({ error: '任务不存在' })
+    res.json({ success: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 完成任务
 router.post('/:id/complete', async (req, res) => {
-  const updated = await tasks.update(req.params.id, {
-    status: 'done',
-    completedResult: req.body.completedResult || '',
-    completedAt: new Date().toISOString()
-  })
-  if (!updated) return res.status(404).json({ error: '任务不存在' })
-  res.json(updated)
+  try {
+    const updated = await tasks.update(req.params.id, {
+      status: 'done',
+      completedResult: req.body.completedResult || '',
+      completedAt: new Date().toISOString()
+    })
+    if (!updated) return res.status(404).json({ error: '任务不存在' })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 屏蔽提醒
 router.post('/:id/dismiss-reminder', async (req, res) => {
-  const updated = await tasks.update(req.params.id, { reminderDismissed: true })
-  if (!updated) return res.status(404).json({ error: '任务不存在' })
-  res.json(updated)
+  try {
+    const updated = await tasks.update(req.params.id, { reminderDismissed: true })
+    if (!updated) return res.status(404).json({ error: '任务不存在' })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 延迟提醒
 router.post('/:id/snooze-reminder', async (req, res) => {
-  let until = req.body.until || new Date(Date.now() + 60 * 60 * 1000).toISOString()
-  if (isNaN(new Date(until).getTime())) {
-    return res.status(400).json({ error: '无效日期格式' })
-  }
-  const updated = await tasks.update(req.params.id, { reminderSnoozedUntil: until })
-  if (!updated) return res.status(404).json({ error: '任务不存在' })
-  res.json(updated)
+  try {
+    let until = req.body.until || new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    const untilDate = new Date(until)
+    if (isNaN(untilDate.getTime())) {
+      return res.status(400).json({ error: '无效日期格式' })
+    }
+    if (untilDate <= new Date()) {
+      return res.status(400).json({ error: '延迟时间必须在未来' })
+    }
+    const updated = await tasks.update(req.params.id, { reminderSnoozedUntil: until })
+    if (!updated) return res.status(404).json({ error: '任务不存在' })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 export default router

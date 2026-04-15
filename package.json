@@ -56,12 +56,12 @@
     },
     "mac": {
       "target": ["dmg"],
-      "icon": "electron/icon.ico",
+      "icon": "electron/icon.png",
       "category": "public.app-category.productivity"
     },
     "linux": {
       "target": ["AppImage"],
-      "icon": "electron/icon.ico",
+      "icon": "electron/icon.png",
       "category": "Utility"
     }
   }

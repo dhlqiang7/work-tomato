@@ -19,13 +19,6 @@ router.post('/start', async (req, res) => {
     const { taskId, type = 'work' } = req.body
     const now = new Date().toISOString()
 
-    // 取消当前进行中的番茄钟
-    const all = await pomodoros.getAll()
-    const running = all.filter(p => p.status === 'running')
-    for (const r of running) {
-      await pomodoros.update(r.id, { status: 'cancelled', endedAt: now })
-    }
-
     const plannedMinutes = type === 'work' ? 25 : type === 'longbreak' ? 15 : 5
 
     const item = {
@@ -40,7 +33,17 @@ router.post('/start', async (req, res) => {
       startedAt: now,
       endedAt: null
     }
-    await pomodoros.create(item)
+
+    // 原子操作：读取 → 取消进行中的 → 添加新的，在 replaceAll 的锁内完成
+    const all = await pomodoros.getAll()
+    for (const p of all) {
+      if (p.status === 'running') {
+        p.status = 'cancelled'
+        p.endedAt = now
+      }
+    }
+    all.push(item)
+    await pomodoros.replaceAll(all)
 
     if (taskId) {
       await tasks.update(taskId, { status: 'active' })
@@ -54,35 +57,39 @@ router.post('/start', async (req, res) => {
 
 // 暂停
 router.put('/:id/pause', async (req, res) => {
-  const item = await pomodoros.getById(req.params.id)
-  if (!item) return res.status(404).json({ error: '记录不存在' })
-  if (item.status !== 'running') return res.status(400).json({ error: '非运行状态' })
+  try {
+    const item = await pomodoros.getById(req.params.id)
+    if (!item) return res.status(404).json({ error: '记录不存在' })
+    if (item.status !== 'running') return res.status(400).json({ error: '非运行状态' })
 
-  const updated = await pomodoros.update(req.params.id, {
-    status: 'paused',
-    lastPausedAt: new Date().toISOString(),
-    actualMinutes: calcActualMinutes(item)
-  })
-  res.json(updated)
+    const updated = await pomodoros.update(req.params.id, {
+      status: 'paused',
+      lastPausedAt: new Date().toISOString(),
+      actualMinutes: calcActualMinutes(item)
+    })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 继续
 router.put('/:id/resume', async (req, res) => {
-  const item = await pomodoros.getById(req.params.id)
-  if (!item) return res.status(404).json({ error: '记录不存在' })
-  if (item.status !== 'paused') return res.status(400).json({ error: '非暂停状态' })
+  try {
+    const item = await pomodoros.getById(req.params.id)
+    if (!item) return res.status(404).json({ error: '记录不存在' })
+    if (item.status !== 'paused') return res.status(400).json({ error: '非暂停状态' })
 
-  // 累加本次暂停时长
-  const pauseDuration = item.lastPausedAt
-    ? Date.now() - new Date(item.lastPausedAt).getTime()
-    : 0
+    // 累加本次暂停时长
+    const pauseDuration = item.lastPausedAt
+      ? Date.now() - new Date(item.lastPausedAt).getTime()
+      : 0
 
-  const updated = await pomodoros.update(req.params.id, {
-    status: 'running',
-    lastPausedAt: null,
-    pausedMs: (item.pausedMs || 0) + pauseDuration
-  })
-  res.json(updated)
+    const updated = await pomodoros.update(req.params.id, {
+      status: 'running',
+      lastPausedAt: null,
+      pausedMs: (item.pausedMs || 0) + pauseDuration
+    })
+    res.json(updated)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 停止（完成或取消）
@@ -119,23 +126,27 @@ router.put('/:id/stop', async (req, res) => {
 
 // 获取当前番茄钟
 router.get('/current', async (req, res) => {
-  const all = await pomodoros.getAll()
-  const running = all.find(p => p.status === 'running' || p.status === 'paused')
-  res.json(running || null)
+  try {
+    const all = await pomodoros.getAll()
+    const running = all.find(p => p.status === 'running' || p.status === 'paused')
+    res.json(running || null)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // 获取番茄钟历史
 router.get('/history', async (req, res) => {
-  const all = await pomodoros.getAll()
-  const { taskId, date } = req.query
-  let items = all.filter(p => p.status === 'completed')
-  if (taskId) items = items.filter(p => p.taskId === taskId)
-  if (date) {
-    const d = new Date(date).toDateString()
-    items = items.filter(p => new Date(p.startedAt).toDateString() === d)
-  }
-  items.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
-  res.json(items)
+  try {
+    const all = await pomodoros.getAll()
+    const { taskId, date } = req.query
+    let items = all.filter(p => p.status === 'completed')
+    if (taskId) items = items.filter(p => p.taskId === taskId)
+    if (date) {
+      const d = new Date(date).toDateString()
+      items = items.filter(p => new Date(p.startedAt).toDateString() === d)
+    }
+    items.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
+    res.json(items)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 export default router

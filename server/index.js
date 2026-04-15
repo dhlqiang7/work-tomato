@@ -25,6 +25,13 @@ export async function startServer({ silent = false } = {}) {
   const app = express()
   app.use(express.json({ limit: '1mb' }))
 
+  // 安全响应头
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'DENY')
+    next()
+  })
+
   // API 路由
   app.use('/api/tasks', taskRoutes)
   app.use('/api/projects', projectRoutes)

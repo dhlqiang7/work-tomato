@@ -36,8 +36,11 @@ async function readJson(fileName, defaultVal = []) {
     try {
       return JSON.parse(content)
     } catch {
-      // JSON 损坏时返回默认值，避免应用崩溃
+      // JSON 损坏时先备份损坏文件，再返回默认值
       console.error(`数据文件 ${fileName} 已损坏，将使用空数据恢复`)
+      try {
+        await fs.copyFile(filePath, filePath + '.bak')
+      } catch {}
       await safeWrite(filePath, defaultVal)
       return defaultVal
     }
@@ -59,8 +62,12 @@ const storeLocks = new Map()
 
 async function withLock(fileName, fn) {
   // 等待同一文件的锁释放
-  while (storeLocks.get(fileName)) {
-    await storeLocks.get(fileName)
+  while (storeLocks.has(fileName)) {
+    try {
+      await storeLocks.get(fileName)
+    } catch {
+      // 前一个操作失败，锁会在 finally 中释放，继续等待即可
+    }
   }
   const promise = fn()
   storeLocks.set(fileName, promise)

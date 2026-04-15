@@ -5,6 +5,7 @@
       <div class="toolbar-left">
         <h2 class="view-title">任务</h2>
         <div class="filter-group">
+          <input v-model="filter.keyword" class="input input-sm" placeholder="搜索任务..." @input="onSearch" />
           <select v-model="filter.status" class="select select-sm" @change="load">
             <option value="">全部状态</option>
             <option value="pending">待办</option>
@@ -160,7 +161,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -182,7 +183,12 @@ const completeResult = ref('')
 const tagsInput = ref('')
 const peopleInput = ref('')
 
-const filter = reactive({ status: '', projectId: '', priority: '' })
+const filter = reactive({ status: '', projectId: '', priority: '', keyword: '' })
+let searchTimer = null
+function onSearch() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(load, 300)
+}
 
 const defaultForm = {
   title: '', description: '', projectId: 'default',
@@ -198,6 +204,7 @@ async function load() {
   }
   if (filter.projectId) params.set('projectId', filter.projectId)
   if (filter.priority) params.set('priority', filter.priority)
+  if (filter.keyword) params.set('keyword', filter.keyword)
 
   try {
     const [taskList, projectList] = await Promise.all([
@@ -315,6 +322,7 @@ function formatDate(d) {
 }
 
 onMounted(load)
+onUnmounted(() => clearTimeout(searchTimer))
 </script>
 
 <style scoped>
@@ -342,12 +350,16 @@ onMounted(load)
 .filter-group {
   display: flex; gap: var(--sp-2);
 }
-.select-sm {
+.select-sm, .input-sm {
   width: auto; min-width: 110px;
   padding: var(--sp-1) var(--sp-3);
   height: 32px;
   font-size: var(--fs-sm);
   padding-right: 28px;
+}
+.input-sm {
+  min-width: 140px;
+  padding-right: var(--sp-3);
 }
 
 /* Task list */
