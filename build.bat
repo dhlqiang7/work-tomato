@@ -1,6 +1,6 @@
 @echo off
-set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-set ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/binary.html?path=electron-builder-binaries/
+set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
+set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
 chcp 65001 >/dev/null 2>nul
 setlocal EnableDelayedExpansion
 
@@ -50,14 +50,14 @@ echo   前端构建完成
 
 :: 打包 Electron
 echo   [3/3] 打包 Electron 应用...
-echo   （使用国内镜像下载构建工具...）
+echo   （使用华为镜像下载构建工具...）
 call npx electron-builder --win
 if %errorlevel% neq 0 (
     echo.
     echo   打包失败
     echo   请检查网络连接，或手动设置镜像后重试：
-    echo   set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-    echo   set ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/binary.html?path=electron-builder-binaries/
+    echo   set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
+    echo   set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
     pause
     exit /b 1
 )
