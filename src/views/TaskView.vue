@@ -340,6 +340,7 @@ onMounted(load)
 .select-sm {
   width: auto; min-width: 110px;
   padding: var(--sp-1) var(--sp-3);
+  height: 32px;
   font-size: var(--fs-sm);
   padding-right: 28px;
 }

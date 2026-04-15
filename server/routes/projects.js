@@ -77,8 +77,9 @@ router.delete('/:id', async (req, res) => {
     const project = await projects.getById(req.params.id)
     if (!project) return res.status(404).json({ error: '项目不存在' })
     // 先迁移任务到默认项目
+    const now = new Date().toISOString()
     const allTasks = await tasks.getAll()
-    const updated = allTasks.map(t => t.projectId === req.params.id ? { ...t, projectId: 'default' } : t)
+    const updated = allTasks.map(t => t.projectId === req.params.id ? { ...t, projectId: 'default', updatedAt: now } : t)
     await tasks.replaceAll(updated)
     // 再删除项目
     await projects.delete(req.params.id)

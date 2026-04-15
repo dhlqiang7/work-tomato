@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createStore } from '../store/base.js'
+import { createStore, initDefaultProject } from '../store/base.js'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -69,6 +69,7 @@ router.get('/dashboard', async (req, res) => {
     const doneDates = new Set(
       allTasks.filter(t => t.status === 'done' && t.completedAt)
         .map(t => new Date(t.completedAt).toDateString())
+        .filter(d => d !== 'Invalid Date')
     )
     let streak = 0
     const d = new Date()
@@ -209,6 +210,8 @@ router.post('/import', async (req, res) => {
       for (const [key, store] of Object.entries(stores)) {
         if (data[key]) await store.replaceAll(data[key])
       }
+      // 确保默认项目存在
+      await initDefaultProject()
     } else {
       // merge: 追加不重复的条目
       for (const [key, store] of Object.entries(stores)) {

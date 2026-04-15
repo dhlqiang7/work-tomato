@@ -35,7 +35,6 @@
       "dist/**",
       "electron/**",
       "server/**",
-      "src/assets/icon.ico",
       "package.json"
     ],
     "extraResources": [

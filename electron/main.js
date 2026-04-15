@@ -53,7 +53,7 @@ async function createWindow() {
 // ====== 系统托盘 ======
 function createTray() {
   // 按平台选择图标格式
-  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.ico'
+  const iconFile = 'icon.ico'
   const icon = nativeImage.createFromPath(path.join(__dirname, iconFile))
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 

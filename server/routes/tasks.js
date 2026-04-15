@@ -39,6 +39,29 @@ router.get('/', async (req, res) => {
   }
 })
 
+// 获取需要提醒的任务（必须在 /:id 之前，否则被参数路由拦截）
+router.get('/reminders/list', async (req, res) => {
+  try {
+    const all = await tasks.getAll()
+    const now = new Date()
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+
+    const reminders = all.filter(t => {
+      if (t.status === 'done' || t.status === 'archived') return false
+      if (t.reminderDismissed) return false
+      if (t.reminderSnoozedUntil && new Date(t.reminderSnoozedUntil) > now) return false
+      if (!t.deadline) return false
+
+      const deadline = new Date(t.deadline)
+      return deadline <= oneHourLater
+    })
+
+    res.json(reminders)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // 获取单个任务
 router.get('/:id', async (req, res) => {
   try {
@@ -91,6 +114,10 @@ router.put('/:id', async (req, res) => {
   for (const key of TASK_UPDATE_FIELDS) {
     if (req.body[key] !== undefined) updates[key] = req.body[key]
   }
+  // 校验 status 合法值
+  if (updates.status && !['pending', 'active', 'done', 'archived'].includes(updates.status)) {
+    return res.status(400).json({ error: '无效的状态值' })
+  }
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
   const updated = await tasks.update(req.params.id, updates)
   if (!updated) return res.status(404).json({ error: '任务不存在' })
@@ -113,29 +140,6 @@ router.post('/:id/complete', async (req, res) => {
   })
   if (!updated) return res.status(404).json({ error: '任务不存在' })
   res.json(updated)
-})
-
-// 获取需要提醒的任务
-router.get('/reminders/list', async (req, res) => {
-  try {
-    const all = await tasks.getAll()
-    const now = new Date()
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
-
-    const reminders = all.filter(t => {
-      if (t.status === 'done' || t.status === 'archived') return false
-      if (t.reminderDismissed) return false
-      if (t.reminderSnoozedUntil && new Date(t.reminderSnoozedUntil) > now) return false
-      if (!t.deadline) return false
-
-      const deadline = new Date(t.deadline)
-      return deadline <= oneHourLater
-    })
-
-    res.json(reminders)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
 })
 
 // 屏蔽提醒

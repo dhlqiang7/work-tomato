@@ -207,7 +207,7 @@ async function togglePause() {
     }
   } catch (e) {
     paused.value = prev  // 回滚状态
-    toast.error(paused.value ? '暂停失败' : '继续失败')
+    toast.error(prev ? '继续失败' : '暂停失败')
   }
 }
 

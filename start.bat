@@ -26,6 +26,11 @@ if exist "%~dp0node_modules\electron\dist\electron.exe" (
     timeout /t 3 >nul
 ) else (
     echo   Electron not found, browser mode...
+    if not exist "%~dp0dist\index.html" (
+        echo   [ERROR] No build found. Run install.bat first.
+        pause
+        exit /b 1
+    )
     node "%~dp0server\index.js"
 )
 

@@ -90,8 +90,18 @@ async function load() {
   try {
     const params = new URLSearchParams({ period: currentPeriod.value })
     if (currentPeriod.value === 'custom') {
-      if (customStart.value) params.set('start', customStart.value)
-      if (customEnd.value) params.set('end', customEnd.value)
+      if (!customStart.value || !customEnd.value) {
+        toast.warning('请选择起止日期')
+        loading.value = false
+        return
+      }
+      if (customStart.value > customEnd.value) {
+        toast.warning('开始日期不能晚于结束日期')
+        loading.value = false
+        return
+      }
+      params.set('start', customStart.value)
+      params.set('end', customEnd.value)
     }
     data.value = await get('/stats/review?' + params.toString())
 
