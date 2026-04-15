@@ -127,6 +127,9 @@ watch(() => props.targetTask, (t) => {
   if (t) {
     selectedTaskId.value = t.id
     currentTask.value = t
+  } else {
+    selectedTaskId.value = ''
+    currentTask.value = null
   }
 }, { immediate: true })
 
@@ -179,11 +182,11 @@ async function onTimerComplete() {
     return
   }
 
-  if (phase.value === 'work') {
-    todayCount.value++
-    todayMinutes.value += Math.round(totalSeconds.value / 60)
-    toast.success('番茄钟完成！休息一下吧 🎉')
+  // 从服务器刷新真实数据
+  await load()
 
+  if (phase.value === 'work') {
+    toast.success('番茄钟完成！休息一下吧 🎉')
     const nextPhase = todayCount.value % 4 === 0 ? 'longbreak' : 'break'
     phase.value = nextPhase
     totalSeconds.value = nextPhase === 'longbreak' ? 15 * 60 : 5 * 60
@@ -228,8 +231,6 @@ async function stopTimer(completed) {
   try {
     await put(`/pomodoros/${currentPomodoroId.value}/stop`, { completed })
     if (completed) {
-      todayCount.value++
-      todayMinutes.value += Math.round((totalSeconds.value - remainingSeconds.value) / 60)
       toast.success('番茄钟完成！')
     } else {
       toast.warning('已放弃当前番茄钟')

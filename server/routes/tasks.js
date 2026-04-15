@@ -28,9 +28,11 @@ router.get('/', async (req, res) => {
       const pa = priorityOrder[a.priority] ?? 2
       const pb = priorityOrder[b.priority] ?? 2
       if (pa !== pb) return pa - pb
-      if (!a.deadline) return 1
-      if (!b.deadline) return -1
-      return new Date(a.deadline) - new Date(b.deadline)
+      const da = a.deadline ? new Date(a.deadline).getTime() : NaN
+      const db = b.deadline ? new Date(b.deadline).getTime() : NaN
+      if (isNaN(da)) return 1
+      if (isNaN(db)) return -1
+      return da - db
     })
 
     res.json(items)
@@ -151,7 +153,10 @@ router.post('/:id/dismiss-reminder', async (req, res) => {
 
 // 延迟提醒
 router.post('/:id/snooze-reminder', async (req, res) => {
-  const until = req.body.until || new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  let until = req.body.until || new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  if (isNaN(new Date(until).getTime())) {
+    return res.status(400).json({ error: '无效日期格式' })
+  }
   const updated = await tasks.update(req.params.id, { reminderSnoozedUntil: until })
   if (!updated) return res.status(404).json({ error: '任务不存在' })
   res.json(updated)

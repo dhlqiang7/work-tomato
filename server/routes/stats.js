@@ -218,7 +218,7 @@ router.post('/import', async (req, res) => {
         if (!data[key]) continue
         const existing = await store.getAll()
         const existingIds = new Set(existing.map(i => i.id))
-        const newItems = data[key].filter(i => !existingIds.has(i.id))
+        const newItems = data[key].filter(i => i.id && !existingIds.has(i.id))
         await store.replaceAll([...existing, ...newItems])
       }
     }

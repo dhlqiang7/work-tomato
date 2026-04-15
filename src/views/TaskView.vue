@@ -41,7 +41,7 @@
           :class="{ 'task-done': task.status === 'done', 'task-overdue': isOverdue(task) }"
           :style="{ animationDelay: idx * 40 + 'ms' }"
         >
-          <div class="task-main" @click="openEdit(task)">
+          <div class="task-main" @click="openEdit(task)" :style="task.status === 'done' ? 'cursor:default' : ''">
             <div class="task-left">
               <button
                 class="task-check"
@@ -301,7 +301,12 @@ function startPomodoro(task) {
 }
 
 function isOverdue(task) {
-  return task.deadline && new Date(task.deadline) < new Date() && task.status !== 'done'
+  if (!task.deadline || task.status === 'done') return false
+  const deadline = new Date(task.deadline)
+  const today = new Date()
+  return deadline.getFullYear() < today.getFullYear()
+    || (deadline.getFullYear() === today.getFullYear() && (deadline.getMonth() < today.getMonth()
+    || (deadline.getMonth() === today.getMonth() && deadline.getDate() < today.getDate())))
 }
 
 function formatDate(d) {
