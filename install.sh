@@ -8,7 +8,7 @@ echo "  🍅 Tomato - 安装向导"
 echo ""
 
 # 检查 Node.js
-echo "  [1/4] 检查 Node.js..."
+echo "  [1/5] 检查 Node.js..."
 if ! command -v node &>/dev/null; then
     echo "  ❌ 未检测到 Node.js，请先安装 Node.js 18+"
     echo "  👉 https://nodejs.org/"
@@ -22,19 +22,28 @@ fi
 echo "  ✅ Node.js $(node -v)"
 
 # 检查 npm
-echo "  [2/4] 检查 npm..."
+echo "  [2/5] 检查 npm..."
 command -v npm &>/dev/null || { echo "  ❌ 未检测到 npm"; exit 1; }
 echo "  ✅ npm $(npm -v)"
 
 # 安装依赖
-echo "  [3/4] 安装项目依赖..."
+echo "  [3/5] 安装项目依赖（含 Electron）..."
+echo "  （Electron 首次下载约 80MB，请耐心等待）"
 npm install
 echo "  ✅ 依赖安装完成"
 
 # 构建
-echo "  [4/4] 构建前端资源..."
+echo "  [4/5] 构建前端资源..."
 npx vite build
 echo "  ✅ 构建完成"
+
+# 验证 Electron
+echo "  [5/5] 验证 Electron..."
+if [ -f "node_modules/electron/dist/electron" ]; then
+    echo "  ✅ Electron 已就绪"
+else
+    echo "  ⚠️  Electron 未安装成功，将使用浏览器模式启动"
+fi
 
 echo ""
 echo "  ✅ 安装成功！运行 ./start.sh 启动应用"

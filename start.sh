@@ -15,5 +15,11 @@ if [ ! -f "dist/index.html" ]; then
     npx vite build
 fi
 
-# 启动
-node server/index.js
+# 优先使用 Electron 桌面模式
+if [ -f "node_modules/electron/dist/electron" ]; then
+    echo "  启动桌面应用模式..."
+    npx electron .
+else
+    echo "  Electron 未安装，使用浏览器模式..."
+    node server/index.js
+fi

@@ -18,13 +18,18 @@ if not exist "%~dp0dist\index.html" (
     )
 )
 
-:: 启动服务
-node "%~dp0server\index.js"
+:: 优先使用 Electron 桌面模式
+where npx >nul 2>nul
+if exist "%~dp0node_modules\electron\dist\electron.exe" (
+    echo   启动桌面应用模式...
+    npx electron .
+) else (
+    echo   Electron 未安装，使用浏览器模式...
+    node "%~dp0server\index.js"
+)
 
-:: 如果服务异常退出
 if %errorlevel% neq 0 (
     echo.
     echo   ❌ 启动失败，错误代码：%errorlevel%
-    echo.
     pause
 )

@@ -4,10 +4,14 @@
   "description": "个人工作跟踪与番茄钟系统",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "node server/index.js",
     "build": "vite build",
     "start": "node server/index.js",
+    "start:electron": "electron .",
+    "electron:dev": "vite build && electron .",
+    "electron:build": "vite build && electron-builder",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,6 +21,44 @@
   "devDependencies": {
     "vite": "^6.0.0",
     "@vitejs/plugin-vue": "^5.2.0",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.tomato.work",
+    "productName": "Tomato",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "server/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data",
+        "filter": ["**/*.json"]
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "src/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Tomato"
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
   }
 }
