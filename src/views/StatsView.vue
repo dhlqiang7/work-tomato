@@ -29,7 +29,7 @@
     </div>
 
     <!-- 快速回顾入口 -->
-    <div class="quick-review card card-elevated" @click="$parent.$emit('changeView', 'review')">
+    <div class="quick-review card card-elevated" @click="goReview">
       <span>📝 查看详细回顾与总结 →</span>
     </div>
   </div>
@@ -40,6 +40,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 
 const { get } = useApi()
+const emit = defineEmits(['goReview'])
+
+function goReview() {
+  emit('goReview')
+}
 const dashboard = ref({
   todayDoneCount: 0, todayPendingCount: 0,
   todayPomodoroCount: 0, todayFocusMinutes: 0,
