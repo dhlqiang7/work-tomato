@@ -15,7 +15,6 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Tomato - 个人工作助理',
-    icon: path.join(__dirname, '../src/assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
