@@ -10,7 +10,5 @@ https://mirrors.huaweicloud.com/electron-builder-binaries/winCodeSign-2.6.0/winC
 https://mirrors.huaweicloud.com/electron-builder-binaries/nsis-3.0.4.1/nsis-3.0.4.1.7z
 https://mirrors.huaweicloud.com/electron-builder-binaries/nsis-resources-3.4.1/nsis-resources-3.4.1.7z
 
-Or from npmmirror:
-https://registry.npmmirror.com/binary.html?path=electron-builder-binaries/
-
-build.bat will auto-copy them to electron-builder cache before packaging.
+Prerequisite: 7-Zip must be installed (https://7-zip.org) for auto-extraction.
+build.bat will extract vendor/*.7z to electron-builder cache directory before packaging.

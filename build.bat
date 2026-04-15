@@ -5,17 +5,38 @@ setlocal EnableDelayedExpansion
 set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
 set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
 
-:: Pre-load vendor binaries to electron-builder cache
+:: Pre-load vendor binaries to electron-builder cache (requires 7-Zip)
 set "EB_CACHE=%LOCALAPPDATA%\electron-builder\Cache"
 if exist "%~dp0vendor\*.7z" (
-    echo   Pre-loading vendor binaries to cache...
-    if not exist "%EB_CACHE%\winCodeSign\winCodeSign-2.6.0" mkdir "%EB_CACHE%\winCodeSign\winCodeSign-2.6.0"
-    if not exist "%EB_CACHE%\nsis\nsis-3.0.4.1" mkdir "%EB_CACHE%\nsis\nsis-3.0.4.1"
-    if not exist "%EB_CACHE%\nsis-resources\nsis-resources-3.4.1" mkdir "%EB_CACHE%\nsis-resources\nsis-resources-3.4.1"
-    copy /Y "%~dp0vendor\winCodeSign-2.6.0.7z" "%EB_CACHE%\winCodeSign\winCodeSign-2.6.0\" >nul 2>nul
-    copy /Y "%~dp0vendor\nsis-3.0.4.1.7z" "%EB_CACHE%\nsis\nsis-3.0.4.1\" >nul 2>nul
-    copy /Y "%~dp0vendor\nsis-resources-3.4.1.7z" "%EB_CACHE%\nsis-resources\nsis-resources-3.4.1\" >nul 2>nul
-    echo   Vendor binaries loaded.
+    where 7z >nul 2>nul
+    if !errorlevel! equ 0 (
+        echo   Extracting vendor binaries to cache...
+        if not exist "%EB_CACHE%\winCodeSign\winCodeSign-2.6.0\rcedit-x64.exe" (
+            if exist "%~dp0vendor\winCodeSign-2.6.0.7z" (
+                mkdir "%EB_CACHE%\winCodeSign\winCodeSign-2.6.0" 2>nul
+                7z x -y -o"%EB_CACHE%\winCodeSign\winCodeSign-2.6.0" "%~dp0vendor\winCodeSign-2.6.0.7z" >nul
+                echo     winCodeSign OK
+            )
+        )
+        if not exist "%EB_CACHE%\nsis\nsis-3.0.4.1\makensis.exe" (
+            if exist "%~dp0vendor\nsis-3.0.4.1.7z" (
+                mkdir "%EB_CACHE%\nsis\nsis-3.0.4.1" 2>nul
+                7z x -y -o"%EB_CACHE%\nsis\nsis-3.0.4.1" "%~dp0vendor\nsis-3.0.4.1.7z" >nul
+                echo     nsis OK
+            )
+        )
+        if not exist "%EB_CACHE%\nsis-resources\nsis-resources-3.4.1\nsis-resources-3.4.1.7z" (
+            if exist "%~dp0vendor\nsis-resources-3.4.1.7z" (
+                mkdir "%EB_CACHE%\nsis-resources\nsis-resources-3.4.1" 2>nul
+                7z x -y -o"%EB_CACHE%\nsis-resources\nsis-resources-3.4.1" "%~dp0vendor\nsis-resources-3.4.1.7z" >nul
+                echo     nsis-resources OK
+            )
+        )
+        echo   Vendor binaries ready.
+    ) else (
+        echo   [WARN] 7-Zip not found, skipping vendor extraction.
+        echo          Install 7-Zip or rely on mirror download.
+    )
 )
 
 echo.
