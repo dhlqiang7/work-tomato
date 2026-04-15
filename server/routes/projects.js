@@ -69,16 +69,23 @@ router.put('/:id', async (req, res) => {
 
 // 删除项目
 router.delete('/:id', async (req, res) => {
-  if (req.params.id === 'default') {
-    return res.status(400).json({ error: '不能删除默认项目' })
+  try {
+    if (req.params.id === 'default') {
+      return res.status(400).json({ error: '不能删除默认项目' })
+    }
+    // 先确认项目存在
+    const project = await projects.getById(req.params.id)
+    if (!project) return res.status(404).json({ error: '项目不存在' })
+    // 先迁移任务到默认项目
+    const allTasks = await tasks.getAll()
+    const updated = allTasks.map(t => t.projectId === req.params.id ? { ...t, projectId: 'default' } : t)
+    await tasks.replaceAll(updated)
+    // 再删除项目
+    await projects.delete(req.params.id)
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-  const ok = await projects.delete(req.params.id)
-  if (!ok) return res.status(404).json({ error: '项目不存在' })
-  // 将该项目下的任务移到默认项目
-  const allTasks = await tasks.getAll()
-  const updated = allTasks.map(t => t.projectId === req.params.id ? { ...t, projectId: 'default' } : t)
-  await tasks.replaceAll(updated)
-  res.json({ success: true })
 })
 
 export default router

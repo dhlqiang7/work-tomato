@@ -4,6 +4,8 @@
       <h2 class="view-title">统计</h2>
     </div>
 
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <template v-else>
     <!-- 数据卡片 -->
     <div class="stats-cards">
       <div v-for="(s, i) in statCards" :key="s.label" class="stat-card card card-elevated"
@@ -30,8 +32,9 @@
 
     <!-- 快速回顾入口 -->
     <div class="quick-review card card-elevated" @click="goReview">
-      <span>📝 查看详细回顾与总结 →</span>
+      <span>查看详细回顾与总结 →</span>
     </div>
+    </template>
   </div>
 </template>
 
@@ -42,6 +45,7 @@ import { useToast } from '@/composables/useToast'
 
 const { get } = useApi()
 const toast = useToast()
+const loading = ref(true)
 const emit = defineEmits(['goReview'])
 
 function goReview() {
@@ -69,9 +73,11 @@ function barHeight(minutes) {
 }
 
 async function load() {
+  loading.value = true
   try {
     dashboard.value = await get('/stats/dashboard')
   } catch (e) { toast.error('统计数据加载失败') }
+  finally { loading.value = false }
 }
 
 onMounted(load)

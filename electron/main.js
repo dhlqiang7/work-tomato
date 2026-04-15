@@ -3,10 +3,10 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const PORT = 3210
 
 let mainWindow = null
 let server = null
+let serverPort = 3210
 let tray = null
 let isQuitting = false
 
@@ -37,7 +37,7 @@ async function createWindow() {
     }
   })
 
-  mainWindow.loadURL(`http://localhost:${PORT}`)
+  mainWindow.loadURL(`http://localhost:${serverPort}`)
 
   mainWindow.on('closed', () => { mainWindow = null })
 
@@ -52,7 +52,9 @@ async function createWindow() {
 
 // ====== 系统托盘 ======
 function createTray() {
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'icon.ico'))
+  // 按平台选择图标格式
+  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.ico'
+  const icon = nativeImage.createFromPath(path.join(__dirname, iconFile))
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 
   const contextMenu = Menu.buildFromTemplate([
@@ -82,8 +84,9 @@ function showWindow() {
 // ====== 后端服务 ======
 async function startBackend() {
   const serverPath = path.join(__dirname, '../server/index.js')
-  const { startServer } = await import(`file://${serverPath}`)
+  const { startServer } = await import(serverPath)
   server = await startServer({ silent: true })
+  serverPort = server.address().port
 }
 
 // ====== 应用生命周期 ======
@@ -130,4 +133,16 @@ app.on('browser-window-created', (_, win) => {
       win.hide()
     }
   })
+})
+
+// 确保进程退出时关闭服务器
+process.on('SIGINT', () => {
+  isQuitting = true
+  if (server) server.close()
+  app.quit()
+})
+process.on('SIGTERM', () => {
+  isQuitting = true
+  if (server) server.close()
+  app.quit()
 })

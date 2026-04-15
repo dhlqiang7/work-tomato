@@ -29,6 +29,8 @@
       </button>
     </div>
 
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <template v-else>
     <!-- 任务列表 -->
     <div class="task-list" v-if="tasks.length">
       <TransitionGroup name="task-list">
@@ -84,6 +86,7 @@
       <div class="title">暂无任务</div>
       <div class="desc">点击「新建任务」开始规划你的工作</div>
     </div>
+    </template>
 
     <!-- 新建/编辑弹窗 -->
     <Modal v-model="showModal" :title="editingTask ? '编辑任务' : '新建任务'">
@@ -165,6 +168,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
+const loading = ref(true)
 const emit = defineEmits(['startPomodoro'])
 const confirmDialog = ref(null)
 
@@ -187,23 +191,27 @@ const defaultForm = {
 const form = reactive({ ...defaultForm })
 
 async function load() {
+  loading.value = true
   const params = new URLSearchParams()
   if (filter.status) {
     params.set('status', filter.status)
-  } else {
-    // 默认显示 pending 和 active，不显示 done
-    params.set('status', 'pending')
   }
   if (filter.projectId) params.set('projectId', filter.projectId)
   if (filter.priority) params.set('priority', filter.priority)
 
-  const [taskList, projectList] = await Promise.all([
-    get('/tasks?' + params.toString()),
-    get('/projects')
-  ])
-  projects.value = projectList
-  const projectMap = Object.fromEntries(projectList.map(p => [p.id, p.title]))
-  tasks.value = taskList.map(t => ({ ...t, projectTitle: projectMap[t.projectId] || '日常工作' }))
+  try {
+    const [taskList, projectList] = await Promise.all([
+      get('/tasks?' + params.toString()),
+      get('/projects')
+    ])
+    projects.value = projectList
+    const projectMap = Object.fromEntries(projectList.map(p => [p.id, p.title]))
+    tasks.value = taskList.map(t => ({ ...t, projectTitle: projectMap[t.projectId] || '日常工作' }))
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {
@@ -232,6 +240,12 @@ function openEdit(task) {
 
 async function saveTask() {
   if (!form.title.trim()) return
+  // 校验优先级
+  if (!['P0', 'P1', 'P2', 'P3'].includes(form.priority)) form.priority = 'P2'
+  // 校验预估番茄数
+  if (typeof form.estimatedPomodoros !== 'number' || form.estimatedPomodoros < 0) form.estimatedPomodoros = 0
+  if (form.estimatedPomodoros > 20) form.estimatedPomodoros = 20
+
   const payload = {
     ...form,
     deadline: form.deadline || null,

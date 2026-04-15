@@ -41,9 +41,13 @@ router.get('/', async (req, res) => {
 
 // 获取单个任务
 router.get('/:id', async (req, res) => {
-  const item = await tasks.getById(req.params.id)
-  if (!item) return res.status(404).json({ error: '任务不存在' })
-  res.json(item)
+  try {
+    const item = await tasks.getById(req.params.id)
+    if (!item) return res.status(404).json({ error: '任务不存在' })
+    res.json(item)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // 创建任务

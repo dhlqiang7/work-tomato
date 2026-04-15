@@ -55,6 +55,22 @@ async function writeJson(fileName, data) {
 }
 
 // 通用 CRUD 封装
+const storeLocks = new Map()
+
+async function withLock(fileName, fn) {
+  // 等待同一文件的锁释放
+  while (storeLocks.get(fileName)) {
+    await storeLocks.get(fileName)
+  }
+  const promise = fn()
+  storeLocks.set(fileName, promise)
+  try {
+    return await promise
+  } finally {
+    storeLocks.delete(fileName)
+  }
+}
+
 export function createStore(fileName) {
   return {
     async getAll() {
@@ -67,27 +83,33 @@ export function createStore(fileName) {
     },
 
     async create(item) {
-      const items = await readJson(fileName, [])
-      items.push(item)
-      await writeJson(fileName, items)
-      return item
+      return withLock(fileName, async () => {
+        const items = await readJson(fileName, [])
+        items.push(item)
+        await writeJson(fileName, items)
+        return item
+      })
     },
 
     async update(id, updates) {
-      const items = await readJson(fileName, [])
-      const index = items.findIndex(item => item.id === id)
-      if (index === -1) return null
-      items[index] = { ...items[index], ...updates, updatedAt: new Date().toISOString() }
-      await writeJson(fileName, items)
-      return items[index]
+      return withLock(fileName, async () => {
+        const items = await readJson(fileName, [])
+        const index = items.findIndex(item => item.id === id)
+        if (index === -1) return null
+        items[index] = { ...items[index], ...updates, updatedAt: new Date().toISOString() }
+        await writeJson(fileName, items)
+        return items[index]
+      })
     },
 
     async delete(id) {
-      const items = await readJson(fileName, [])
-      const filtered = items.filter(item => item.id !== id)
-      if (filtered.length === items.length) return false
-      await writeJson(fileName, filtered)
-      return true
+      return withLock(fileName, async () => {
+        const items = await readJson(fileName, [])
+        const filtered = items.filter(item => item.id !== id)
+        if (filtered.length === items.length) return false
+        await writeJson(fileName, filtered)
+        return true
+      })
     },
 
     async query(filterFn) {
@@ -96,7 +118,9 @@ export function createStore(fileName) {
     },
 
     async replaceAll(items) {
-      await writeJson(fileName, items)
+      return withLock(fileName, async () => {
+        await writeJson(fileName, items)
+      })
     }
   }
 }

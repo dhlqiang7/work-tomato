@@ -19,6 +19,8 @@
       <button class="btn btn-primary btn-sm" @click="load">查询</button>
     </div>
 
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <template v-else>
     <!-- 统计摘要 -->
     <div v-if="data.stats" class="summary-cards">
       <div class="summary-item">
@@ -44,9 +46,9 @@
           <div class="ri-title">{{ task.title }}</div>
           <div v-if="task.completedResult" class="ri-result">{{ task.completedResult }}</div>
           <div class="ri-meta">
-            <span v-if="task.projectTitle" class="ri-project">📁 {{ task.projectTitle }}</span>
+            <span v-if="task.projectTitle" class="ri-project">{{ task.projectTitle }}</span>
             <span class="ri-time">{{ formatTime(task.completedAt) }}</span>
-            <span v-if="task.totalFocusMinutes" class="ri-focus">🍅 {{ task.totalFocusMinutes }}分钟</span>
+            <span v-if="task.totalFocusMinutes" class="ri-focus">{{ task.totalFocusMinutes }}分钟</span>
           </div>
         </div>
       </div>
@@ -55,6 +57,7 @@
       <div class="icon">📝</div>
       <div class="title">该时段暂无完成记录</div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -65,6 +68,7 @@ import { useToast } from '@/composables/useToast'
 
 const { get } = useApi()
 const toast = useToast()
+const loading = ref(true)
 
 const periods = [
   { key: 'today', label: '今日' },
@@ -82,6 +86,7 @@ const customEnd = ref('')
 const data = ref({ tasks: [], stats: null })
 
 async function load() {
+  loading.value = true
   try {
     const params = new URLSearchParams({ period: currentPeriod.value })
     if (currentPeriod.value === 'custom') {
@@ -97,6 +102,7 @@ async function load() {
       ...t, projectTitle: map[t.projectId] || '日常工作'
     }))
   } catch (e) { toast.error('回顾数据加载失败') }
+  finally { loading.value = false }
 }
 
 function changePeriod(key) {

@@ -21,6 +21,7 @@ fi
 
 # 构建前端
 echo "  [2/3] 构建前端资源..."
+rm -rf dist/ dist-electron/
 npx vite build
 echo "  ✅ 前端构建完成"
 

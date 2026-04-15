@@ -330,6 +330,14 @@ html.dark, html.dark body {
 .empty-state .title { font-size: var(--fs-lg); font-weight: var(--fw-medium); margin-bottom: var(--sp-2); }
 .empty-state .desc { font-size: var(--fs-sm); max-width: 320px; line-height: var(--lh-relaxed); }
 
+.loading-state {
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-16) var(--sp-8);
+  color: var(--c-text-3);
+  font-size: var(--fs-md);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
   :root { --sidebar-w: 60px; }

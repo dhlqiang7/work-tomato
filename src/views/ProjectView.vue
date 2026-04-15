@@ -5,7 +5,8 @@
       <button class="btn btn-primary" @click="openCreate">＋ 新建项目</button>
     </div>
 
-    <div class="project-grid" v-if="projects.length">
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <div v-else-if="projects.length" class="project-grid">
       <div v-for="(p, idx) in projects" :key="p.id" class="project-card card"
         :style="{ animationDelay: idx * 60 + 'ms', '--project-color': p.color || '#D94F3B' }">
         <div class="project-color-bar" :style="{ background: p.color || '#D94F3B' }"></div>
@@ -75,6 +76,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 const { get, post, put, del } = useApi()
 const toast = useToast()
 const confirmDialog = ref(null)
+const loading = ref(true)
 
 const projects = ref([])
 const showModal = ref(false)
@@ -85,7 +87,11 @@ const defaultForm = { title: '', description: '', color: '#D94F3B', relatedPeopl
 const form = reactive({ ...defaultForm })
 
 async function load() {
-  projects.value = await get('/projects')
+  loading.value = true
+  try {
+    projects.value = await get('/projects')
+  } catch (e) { toast.error(e.message) }
+  finally { loading.value = false }
 }
 
 function openCreate() {

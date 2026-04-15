@@ -66,12 +66,14 @@ router.get('/dashboard', async (req, res) => {
     const todayFocusMinutes = todayPomodoros.reduce((sum, p) => sum + (p.actualMinutes || 0), 0)
 
     // 计算连续工作天数（上限 365 天）
+    const doneDates = new Set(
+      allTasks.filter(t => t.status === 'done' && t.completedAt)
+        .map(t => new Date(t.completedAt).toDateString())
+    )
     let streak = 0
     const d = new Date()
     while (streak < 365) {
-      const ds = d.toDateString()
-      const hasDone = allTasks.some(t => t.status === 'done' && new Date(t.completedAt).toDateString() === ds)
-      if (hasDone) {
+      if (doneDates.has(d.toDateString())) {
         streak++
         d.setDate(d.getDate() - 1)
       } else {

@@ -68,6 +68,7 @@
         </div>
       </div>
     </div>
+    <ConfirmDialog ref="confirmDialog" />
   </div>
 </template>
 
@@ -75,9 +76,11 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const { get, post, put } = useApi()
 const toast = useToast()
+const confirmDialog = ref(null)
 
 const props = defineProps({ targetTask: Object })
 const emit = defineEmits(['taskCompleted'])
@@ -169,7 +172,12 @@ async function onTimerComplete() {
   running.value = false
   try {
     await put(`/pomodoros/${currentPomodoroId.value}/stop`, { completed: true })
-  } catch (e) { toast.error('保存番茄钟记录失败') }
+  } catch (e) {
+    toast.error('保存番茄钟记录失败')
+    resetToWork()
+    document.title = 'Tomato - 个人工作助理'
+    return
+  }
 
   if (phase.value === 'work') {
     todayCount.value++
@@ -189,14 +197,18 @@ async function onTimerComplete() {
 }
 
 async function togglePause() {
-  paused.value = !paused.value
+  const prev = paused.value
+  paused.value = !prev
   try {
     if (paused.value) {
       await put(`/pomodoros/${currentPomodoroId.value}/pause`)
     } else {
       await put(`/pomodoros/${currentPomodoroId.value}/resume`)
     }
-  } catch (e) { toast.error(paused.value ? '暂停失败' : '继续失败') }
+  } catch (e) {
+    paused.value = prev  // 回滚状态
+    toast.error(paused.value ? '暂停失败' : '继续失败')
+  }
 }
 
 function resetToWork() {
@@ -206,6 +218,9 @@ function resetToWork() {
 }
 
 async function stopTimer(completed) {
+  if (!completed) {
+    if (!await confirmDialog.value?.show('确定放弃当前番茄钟？本次专注将不会被记录。')) return
+  }
   clearInterval(interval)
   running.value = false
   paused.value = false

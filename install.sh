@@ -48,3 +48,6 @@ fi
 echo ""
 echo "  ✅ 安装成功！运行 ./start.sh 启动应用"
 echo ""
+
+# 确保脚本有执行权限
+chmod +x start.sh build.sh 2>/dev/null || true
