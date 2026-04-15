@@ -1,6 +1,9 @@
 node_modules/
 dist/
+dist-electron/
 data/
 *.tmp
+*.log
+.env*
 .DS_Store
 Thumbs.db

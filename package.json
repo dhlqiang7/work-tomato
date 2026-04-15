@@ -16,12 +16,12 @@
   },
   "dependencies": {
     "express": "^4.21.0",
-    "uuid": "^11.0.0"
+    "uuid": "^11.0.0",
+    "vue": "^3.5.0"
   },
   "devDependencies": {
     "vite": "^6.0.0",
     "@vitejs/plugin-vue": "^5.2.0",
-    "vue": "^3.5.0",
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0"
   },
@@ -35,6 +35,8 @@
       "dist/**",
       "electron/**",
       "server/**",
+      "src/assets/icon.ico",
+      "src/assets/icon.svg",
       "package.json"
     ],
     "extraResources": [

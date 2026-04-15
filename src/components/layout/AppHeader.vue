@@ -64,15 +64,20 @@ function onKeydown(e) {
   }
 }
 
+let removeMaxListener = null
+
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   isElectron.value = !!window.electronAPI?.isElectron
   if (isElectron.value) {
     window.electronAPI.isMaximized().then(v => isMax.value = v)
-    window.electronAPI.onMaximizedChanged(v => isMax.value = v)
+    removeMaxListener = window.electronAPI.onMaximizedChanged(v => isMax.value = v)
   }
 })
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
+  if (removeMaxListener) removeMaxListener()
+})
 </script>
 
 <style scoped>

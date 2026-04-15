@@ -23,7 +23,7 @@ export async function startServer({ silent = false } = {}) {
   await initDefaultProject()
 
   const app = express()
-  app.use(express.json())
+  app.use(express.json({ limit: '1mb' }))
 
   // API 路由
   app.use('/api/tasks', taskRoutes)

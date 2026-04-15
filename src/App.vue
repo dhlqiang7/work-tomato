@@ -12,11 +12,12 @@
       </main>
     </div>
     <Toast />
+    <ShortcutHelp v-model="showShortcutHelp" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import AppHeader from './components/layout/AppHeader.vue'
 import Sidebar from './components/layout/Sidebar.vue'
 import TaskView from './views/TaskView.vue'
@@ -25,18 +26,21 @@ import PomodoroView from './views/PomodoroView.vue'
 import StatsView from './views/StatsView.vue'
 import ReviewView from './views/ReviewView.vue'
 import Toast from './components/common/Toast.vue'
+import ShortcutHelp from './components/common/ShortcutHelp.vue'
 
 const currentView = ref('tasks')
 const isDark = ref(false)
 const searchKeyword = ref('')
 const pomodoroTarget = ref(null)
+const showShortcutHelp = ref(false)
+
+const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review' }
 
 function toggleTheme() {
   isDark.value = !isDark.value
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  try { localStorage.setItem('theme', isDark.value ? 'dark' : 'light') } catch {}
 }
 
-// 同步 dark 类到 <html>，使 Teleport 到 body 的组件也能继承主题
 watch(isDark, (val) => {
   document.documentElement.classList.toggle('dark', val)
 }, { immediate: true })
@@ -55,11 +59,47 @@ function onStartTask(task) {
   currentView.value = 'pomodoro'
 }
 
+// 全局快捷键
+function onKeydown(e) {
+  // 忽略输入框内的按键
+  const tag = e.target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+  if (e.target.isContentEditable) return
+
+  const key = e.key
+
+  if (key === '?') {
+    e.preventDefault()
+    showShortcutHelp.value = !showShortcutHelp.value
+    return
+  }
+
+  if (key === 'Escape') {
+    showShortcutHelp.value = false
+    return
+  }
+
+  // Ctrl/Cmd 组合键不处理
+  if (e.ctrlKey || e.metaKey) return
+
+  // 数字键 1-5 切换视图
+  if (viewMap[key]) {
+    e.preventDefault()
+    changeView(viewMap[key])
+    return
+  }
+}
+
 onMounted(() => {
   const saved = localStorage.getItem('theme')
   if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     isDark.value = true
   }
+  document.addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
 })
 </script>
 

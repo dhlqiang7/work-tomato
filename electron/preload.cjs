@@ -6,9 +6,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximize: () => ipcRenderer.invoke('window:maximize'),
   close: () => ipcRenderer.invoke('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
-  // 监听最大化状态变化
+  // 监听最大化状态变化（返回取消函数）
   onMaximizedChanged: (callback) => {
-    ipcRenderer.on('window:maximized-changed', (_, val) => callback(val))
+    const handler = (_, val) => callback(val)
+    ipcRenderer.on('window:maximized-changed', handler)
+    return () => ipcRenderer.removeListener('window:maximized-changed', handler)
   },
   // 平台信息
   platform: process.platform,

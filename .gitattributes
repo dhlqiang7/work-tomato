@@ -1,3 +1,11 @@
 # Windows 脚本强制 CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf
+# Unix 脚本强制 LF
+*.sh text eol=lf
+# 源码统一 LF
+*.js text eol=lf
+*.vue text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf

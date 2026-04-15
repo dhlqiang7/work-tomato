@@ -184,8 +184,12 @@ const form = reactive({ ...defaultForm })
 
 async function load() {
   const params = new URLSearchParams()
-  if (filter.status) params.set('status', filter.status)
-  else params.set('status', 'pending') // 默认不显示 done
+  if (filter.status) {
+    params.set('status', filter.status)
+  } else {
+    // 默认显示 pending 和 active，不显示 done
+    params.set('status', 'pending')
+  }
   if (filter.projectId) params.set('projectId', filter.projectId)
   if (filter.priority) params.set('priority', filter.priority)
 

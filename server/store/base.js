@@ -33,7 +33,14 @@ async function readJson(fileName, defaultVal = []) {
   const filePath = path.join(DATA_DIR, fileName)
   try {
     const content = await fs.readFile(filePath, 'utf-8')
-    return JSON.parse(content)
+    try {
+      return JSON.parse(content)
+    } catch {
+      // JSON 损坏时返回默认值，避免应用崩溃
+      console.error(`数据文件 ${fileName} 已损坏，将使用空数据恢复`)
+      await safeWrite(filePath, defaultVal)
+      return defaultVal
+    }
   } catch {
     await safeWrite(filePath, defaultVal)
     return defaultVal

@@ -107,9 +107,9 @@ const displayTime = computed(() => {
   const s = remainingSeconds.value % 60
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
-const phaseLabel = computed({
-  'work': '专注中', 'break': '短休息', 'longbreak': '长休息'
-}[phase.value] || '专注')
+const phaseLabel = computed(() => {
+  return { 'work': '专注中', 'break': '短休息', 'longbreak': '长休息' }[phase.value] || '专注'
+})
 
 async function load() {
   pendingTasks.value = await get('/tasks?status=pending')
