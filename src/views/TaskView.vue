@@ -151,6 +151,8 @@
         <button class="btn btn-primary" @click="doComplete">确认完成</button>
       </template>
     </Modal>
+
+    <ConfirmDialog ref="confirmDialog" />
   </div>
 </template>
 
@@ -159,10 +161,12 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
 const emit = defineEmits(['startPomodoro'])
+const confirmDialog = ref(null)
 
 const tasks = ref([])
 const projects = ref([])
@@ -268,7 +272,7 @@ async function doComplete() {
 }
 
 async function confirmDelete(task) {
-  if (!confirm(`确定删除「${task.title}」？`)) return
+  if (!await confirmDialog.value?.show(`确定删除「${task.title}」？`)) return
   try {
     await del(`/tasks/${task.id}`)
     toast.success('已删除')

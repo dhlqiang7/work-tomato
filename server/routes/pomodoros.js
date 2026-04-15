@@ -6,6 +6,13 @@ const router = Router()
 const pomodoros = createStore('pomodoros.json')
 const tasks = createStore('tasks.json')
 
+// 计算实际专注分钟数（扣除暂停时间）
+function calcActualMinutes(item) {
+  const totalMs = Date.now() - new Date(item.startedAt).getTime()
+  const pausedMs = item.pausedMs || 0
+  return Math.max(1, Math.round((totalMs - pausedMs) / 60000))
+}
+
 // 开始番茄钟
 router.post('/start', async (req, res) => {
   try {
@@ -27,13 +34,14 @@ router.post('/start', async (req, res) => {
       type,
       plannedMinutes,
       actualMinutes: 0,
+      pausedMs: 0,
+      lastPausedAt: null,
       status: 'running',
       startedAt: now,
       endedAt: null
     }
     await pomodoros.create(item)
 
-    // 更新任务状态为 active
     if (taskId) {
       await tasks.update(taskId, { status: 'active' })
     }
@@ -50,8 +58,11 @@ router.put('/:id/pause', async (req, res) => {
   if (!item) return res.status(404).json({ error: '记录不存在' })
   if (item.status !== 'running') return res.status(400).json({ error: '非运行状态' })
 
-  const elapsed = Math.round((Date.now() - new Date(item.startedAt).getTime()) / 60000)
-  const updated = await pomodoros.update(req.params.id, { actualMinutes: elapsed })
+  const updated = await pomodoros.update(req.params.id, {
+    status: 'paused',
+    lastPausedAt: new Date().toISOString(),
+    actualMinutes: calcActualMinutes(item)
+  })
   res.json(updated)
 })
 
@@ -59,7 +70,18 @@ router.put('/:id/pause', async (req, res) => {
 router.put('/:id/resume', async (req, res) => {
   const item = await pomodoros.getById(req.params.id)
   if (!item) return res.status(404).json({ error: '记录不存在' })
-  const updated = await pomodoros.update(req.params.id, { status: 'running' })
+  if (item.status !== 'paused') return res.status(400).json({ error: '非暂停状态' })
+
+  // 累加本次暂停时长
+  const pauseDuration = item.lastPausedAt
+    ? Date.now() - new Date(item.lastPausedAt).getTime()
+    : 0
+
+  const updated = await pomodoros.update(req.params.id, {
+    status: 'running',
+    lastPausedAt: null,
+    pausedMs: (item.pausedMs || 0) + pauseDuration
+  })
   res.json(updated)
 })
 
@@ -70,8 +92,8 @@ router.put('/:id/stop', async (req, res) => {
     if (!item) return res.status(404).json({ error: '记录不存在' })
 
     const now = new Date()
-    const elapsed = Math.round((now.getTime() - new Date(item.startedAt).getTime()) / 60000)
-    const completed = req.body.completed !== false // 默认完成
+    const elapsed = calcActualMinutes(item)
+    const completed = req.body.completed !== false
 
     const updated = await pomodoros.update(req.params.id, {
       status: completed ? 'completed' : 'cancelled',
@@ -79,7 +101,6 @@ router.put('/:id/stop', async (req, res) => {
       actualMinutes: elapsed
     })
 
-    // 如果是工作阶段且完成，更新任务的番茄计数和专注时长
     if (completed && item.type === 'work' && item.taskId) {
       const task = await tasks.getById(item.taskId)
       if (task) {
@@ -99,7 +120,7 @@ router.put('/:id/stop', async (req, res) => {
 // 获取当前番茄钟
 router.get('/current', async (req, res) => {
   const all = await pomodoros.getAll()
-  const running = all.find(p => p.status === 'running')
+  const running = all.find(p => p.status === 'running' || p.status === 'paused')
   res.json(running || null)
 })
 

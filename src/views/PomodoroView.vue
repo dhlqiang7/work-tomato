@@ -169,14 +169,13 @@ async function onTimerComplete() {
   running.value = false
   try {
     await put(`/pomodoros/${currentPomodoroId.value}/stop`, { completed: true })
-  } catch { /* ignore */ }
+  } catch (e) { toast.error('保存番茄钟记录失败') }
 
   if (phase.value === 'work') {
     todayCount.value++
     todayMinutes.value += Math.round(totalSeconds.value / 60)
     toast.success('番茄钟完成！休息一下吧 🎉')
 
-    // 切换到休息阶段
     const nextPhase = todayCount.value % 4 === 0 ? 'longbreak' : 'break'
     phase.value = nextPhase
     totalSeconds.value = nextPhase === 'longbreak' ? 15 * 60 : 5 * 60
@@ -197,7 +196,13 @@ async function togglePause() {
     } else {
       await put(`/pomodoros/${currentPomodoroId.value}/resume`)
     }
-  } catch { /* ignore */ }
+  } catch (e) { toast.error(paused.value ? '暂停失败' : '继续失败') }
+}
+
+function resetToWork() {
+  phase.value = 'work'
+  totalSeconds.value = 25 * 60
+  remainingSeconds.value = totalSeconds.value
 }
 
 async function stopTimer(completed) {
@@ -214,10 +219,8 @@ async function stopTimer(completed) {
     } else {
       toast.warning('已放弃当前番茄钟')
     }
-  } catch { /* ignore */ }
-  phase.value = 'work'
-  totalSeconds.value = 25 * 60
-  remainingSeconds.value = 25 * 60
+  } catch (e) { toast.error('操作失败') }
+  resetToWork()
   await load()
 }
 

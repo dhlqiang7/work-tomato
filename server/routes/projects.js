@@ -53,9 +53,16 @@ router.post('/', async (req, res) => {
   }
 })
 
-// 更新项目
+// 更新项目（白名单过滤字段）
+const PROJECT_UPDATE_FIELDS = ['title', 'description', 'relatedPeople', 'color', 'status']
+
 router.put('/:id', async (req, res) => {
-  const updated = await projects.update(req.params.id, req.body)
+  const updates = {}
+  for (const key of PROJECT_UPDATE_FIELDS) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key]
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
+  const updated = await projects.update(req.params.id, updates)
   if (!updated) return res.status(404).json({ error: '项目不存在' })
   res.json(updated)
 })

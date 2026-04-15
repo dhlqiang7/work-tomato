@@ -36,19 +36,18 @@
       "electron/**",
       "server/**",
       "src/assets/icon.ico",
-      "src/assets/icon.svg",
       "package.json"
     ],
     "extraResources": [
       {
         "from": "data",
         "to": "data",
-        "filter": ["**/*.json"]
+        "filter": ["**/*"]
       }
     ],
     "win": {
       "target": ["nsis"],
-      "icon": "src/assets/icon.ico"
+      "icon": "electron/icon.ico"
     },
     "nsis": {
       "oneClick": false,

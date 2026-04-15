@@ -39,6 +39,12 @@ function getDateRange(period, customStart, customEnd) {
     case 'custom':
       start = customStart ? new Date(customStart) : today
       end = customEnd ? new Date(new Date(customEnd).getTime() + 86400000) : end
+      // 验证日期有效性
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        start = today
+        end = new Date(today.getTime() + 86400000)
+      }
+      if (start > end) { const tmp = start; start = end; end = tmp }
       break
     default:
       start = today
@@ -181,7 +187,15 @@ router.get('/export', async (req, res) => {
 router.post('/import', async (req, res) => {
   try {
     const { mode = 'merge', data } = req.body
-    if (!data) return res.status(400).json({ error: '无数据' })
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: '无数据' })
+    if (!['merge', 'overwrite'].includes(mode)) return res.status(400).json({ error: '无效模式' })
+
+    // 验证数据结构：每个 key 应为数组
+    const validKeys = ['tasks', 'projects', 'pomodoros']
+    for (const key of Object.keys(data)) {
+      if (!validKeys.includes(key)) delete data[key]
+      else if (!Array.isArray(data[key])) return res.status(400).json({ error: `${key} 数据格式错误` })
+    }
 
     const stores = {
       tasks: createStore('tasks.json'),

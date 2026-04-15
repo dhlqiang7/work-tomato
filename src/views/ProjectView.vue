@@ -61,6 +61,7 @@
         <button class="btn btn-primary" @click="save">{{ editing ? '保存' : '创建' }}</button>
       </template>
     </Modal>
+    <ConfirmDialog ref="confirmDialog" />
   </div>
 </template>
 
@@ -69,9 +70,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
+const confirmDialog = ref(null)
 
 const projects = ref([])
 const showModal = ref(false)
@@ -119,7 +122,7 @@ async function save() {
 }
 
 async function confirmDelete(p) {
-  if (!confirm(`确定删除「${p.title}」？该项目下任务将移至默认项目。`)) return
+  if (!await confirmDialog.value?.show(`确定删除「${p.title}」？该项目下任务将移至默认项目。`)) return
   try {
     await del(`/projects/${p.id}`)
     toast.success('已删除')

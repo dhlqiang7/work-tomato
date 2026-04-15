@@ -38,8 +38,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useToast } from '@/composables/useToast'
 
 const { get } = useApi()
+const toast = useToast()
 const emit = defineEmits(['goReview'])
 
 function goReview() {
@@ -69,7 +71,7 @@ function barHeight(minutes) {
 async function load() {
   try {
     dashboard.value = await get('/stats/dashboard')
-  } catch { /* ignore */ }
+  } catch (e) { toast.error('统计数据加载失败') }
 }
 
 onMounted(load)

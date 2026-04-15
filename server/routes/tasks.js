@@ -77,9 +77,18 @@ router.post('/', async (req, res) => {
   }
 })
 
-// 更新任务
+// 更新任务（白名单过滤字段）
+const TASK_UPDATE_FIELDS = ['title', 'description', 'projectId', 'priority', 'status',
+  'tags', 'relatedPeople', 'deadline', 'reminderDismissed', 'reminderSnoozedUntil',
+  'estimatedPomodoros', 'completedPomodoros', 'totalFocusMinutes']
+
 router.put('/:id', async (req, res) => {
-  const updated = await tasks.update(req.params.id, req.body)
+  const updates = {}
+  for (const key of TASK_UPDATE_FIELDS) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key]
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: '无有效字段' })
+  const updated = await tasks.update(req.params.id, updates)
   if (!updated) return res.status(404).json({ error: '任务不存在' })
   res.json(updated)
 })

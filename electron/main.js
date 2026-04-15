@@ -27,7 +27,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Tomato - 个人工作助理',
-    icon: path.join(__dirname, '../src/assets/icon.ico'),
+    icon: path.join(__dirname, 'icon.ico'),
     frame: false,                        // 无边框
     backgroundColor: '#FBF8F4',
     webPreferences: {
@@ -52,7 +52,7 @@ async function createWindow() {
 
 // ====== 系统托盘 ======
 function createTray() {
-  const icon = nativeImage.createFromPath(path.join(__dirname, '../src/assets/icon.ico'))
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'icon.ico'))
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 
   const contextMenu = Menu.buildFromTemplate([

@@ -61,8 +61,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useToast } from '@/composables/useToast'
 
 const { get } = useApi()
+const toast = useToast()
 
 const periods = [
   { key: 'today', label: '今日' },
@@ -94,7 +96,7 @@ async function load() {
     data.value.tasks = (data.value.tasks || []).map(t => ({
       ...t, projectTitle: map[t.projectId] || '日常工作'
     }))
-  } catch { /* ignore */ }
+  } catch (e) { toast.error('回顾数据加载失败') }
 }
 
 function changePeriod(key) {
