@@ -18,13 +18,10 @@ if not exist "%~dp0dist\index.html" (
     )
 )
 
-:: Launch Electron (fully detached - safe to close this window)
+:: Launch Electron (detached via VBS - safe to close this window)
 if exist "%~dp0node_modules\electron\dist\electron.exe" (
     echo   Launching desktop app...
-    powershell -Command "Start-Process -FilePath '%~dp0node_modules\electron\dist\electron.exe' -ArgumentList '.' -WorkingDirectory '%~dp0'" >nul 2>nul
-    if !errorlevel! neq 0 (
-        start "" "%~dp0node_modules\electron\dist\electron.exe" .
-    )
+    wscript "%~dp0start.vbs"
     echo   Tomato is running. You can close this window.
     timeout /t 3 >nul
 ) else (
