@@ -55,7 +55,9 @@ function createTray() {
   // 按平台选择图标格式
   const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png'
   const icon = nativeImage.createFromPath(path.join(__dirname, iconFile))
-  tray = new Tray(icon.resize({ width: 16, height: 16 }))
+  // 高 DPI 适配：使用 2x 尺寸让系统自动缩放
+  const traySize = Math.round(16 * (process.platform === 'darwin' ? 2 : 1.5))
+  tray = new Tray(icon.resize({ width: traySize, height: traySize }))
 
   const contextMenu = Menu.buildFromTemplate([
     { label: '🍅 Tomato', enabled: false },

@@ -5,7 +5,6 @@
       <div class="toolbar-left">
         <h2 class="view-title">任务</h2>
         <div class="filter-group">
-          <input v-model="filter.keyword" class="input input-sm" placeholder="搜索任务..." @input="onSearch" />
           <select v-model="filter.status" class="select select-sm" @change="load">
             <option value="">全部状态</option>
             <option value="pending">待办</option>
@@ -185,10 +184,14 @@ const peopleInput = ref('')
 
 const filter = reactive({ status: '', projectId: '', priority: '', keyword: '' })
 let searchTimer = null
-function onSearch() {
+
+// 监听 AppHeader 传入的搜索关键词
+const props = defineProps({ searchKeyword: String })
+watch(() => props.searchKeyword, (kw) => {
+  filter.keyword = kw || ''
   clearTimeout(searchTimer)
   searchTimer = setTimeout(load, 300)
-}
+})
 
 const defaultForm = {
   title: '', description: '', projectId: 'default',
@@ -309,11 +312,7 @@ function startPomodoro(task) {
 
 function isOverdue(task) {
   if (!task.deadline || task.status === 'done') return false
-  const deadline = new Date(task.deadline)
-  const today = new Date()
-  return deadline.getFullYear() < today.getFullYear()
-    || (deadline.getFullYear() === today.getFullYear() && (deadline.getMonth() < today.getMonth()
-    || (deadline.getMonth() === today.getMonth() && deadline.getDate() < today.getDate())))
+  return new Date(task.deadline) < new Date()
 }
 
 function formatDate(d) {
@@ -350,16 +349,12 @@ onUnmounted(() => clearTimeout(searchTimer))
 .filter-group {
   display: flex; gap: var(--sp-2);
 }
-.select-sm, .input-sm {
+.select-sm {
   width: auto; min-width: 110px;
   padding: var(--sp-1) var(--sp-3);
   height: 32px;
   font-size: var(--fs-sm);
   padding-right: 28px;
-}
-.input-sm {
-  min-width: 140px;
-  padding-right: var(--sp-3);
 }
 
 /* Task list */

@@ -2,6 +2,8 @@
   "name": "tomato",
   "version": "1.0.0",
   "description": "个人工作跟踪与番茄钟系统",
+  "author": "",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "main": "electron/main.js",

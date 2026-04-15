@@ -115,6 +115,8 @@ router.put('/:id/stop', async (req, res) => {
           completedPomodoros: (task.completedPomodoros || 0) + 1,
           totalFocusMinutes: (task.totalFocusMinutes || 0) + elapsed
         })
+      } else {
+        console.warn(`番茄钟 ${req.params.id} 关联的任务 ${item.taskId} 已不存在`)
       }
     }
 

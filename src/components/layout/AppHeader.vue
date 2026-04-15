@@ -13,7 +13,7 @@
           v-model="keyword"
           class="search-input"
           placeholder="搜索任务... (Ctrl+K)"
-          @keyup.enter="$emit('search', keyword)"
+          @input="$emit('search', keyword)"
           @keyup.escape="keyword = ''; $emit('search', '')"
         />
         <button v-if="keyword" class="search-clear" @click="keyword = ''; $emit('search', '')">✕</button>
