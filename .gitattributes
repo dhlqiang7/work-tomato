@@ -1,0 +1,3 @@
+# Windows 脚本强制 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
