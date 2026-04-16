@@ -68,6 +68,7 @@
                   {{ task.priority }}
                 </span>
               </div>
+              <div v-if="task.description" class="task-desc-preview">{{ task.description }}</div>
               <div class="task-meta">
                 <span v-if="task.projectTitle" class="task-project-badge">
                   📁 {{ task.projectTitle }}
@@ -80,6 +81,9 @@
                 </span>
                 <span v-if="task.tags?.length" class="task-tags">
                   <span v-for="tag in task.tags" :key="tag" class="badge badge-blue">{{ tag }}</span>
+                </span>
+                <span v-if="task.relatedPeople?.length" class="task-people">
+                  <span v-for="person in task.relatedPeople" :key="person" class="badge badge-orange">👤 {{ person }}</span>
                 </span>
               </div>
             </div>
@@ -446,6 +450,13 @@ onUnmounted(() => clearTimeout(searchTimer))
 }
 .task-done .task-title { text-decoration: line-through; }
 
+.task-desc-preview {
+  font-size: var(--fs-sm);
+  color: var(--c-text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: var(--sp-1);
+  max-width: 100%;
+}
 .task-meta {
   display: flex; align-items: center; gap: var(--sp-3);
   flex-wrap: wrap;
@@ -456,6 +467,7 @@ onUnmounted(() => clearTimeout(searchTimer))
 }
 .task-deadline.overdue { color: var(--c-primary); font-weight: var(--fw-semibold); }
 .task-tags { display: flex; gap: 4px; }
+.task-people { display: flex; gap: 4px; }
 
 .task-actions {
   display: flex; gap: 2px;

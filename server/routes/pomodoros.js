@@ -78,9 +78,10 @@ router.put('/:id/resume', async (req, res) => {
     if (!item) return res.status(404).json({ error: '记录不存在' })
     if (item.status !== 'paused') return res.status(400).json({ error: '非暂停状态' })
 
-    // 累加本次暂停时长
+    // 累加本次暂停时长（用服务器时间计算）
+    const now = Date.now()
     const pauseDuration = item.lastPausedAt
-      ? Date.now() - new Date(item.lastPausedAt).getTime()
+      ? now - new Date(item.lastPausedAt).getTime()
       : 0
 
     const updated = await pomodoros.update(req.params.id, {

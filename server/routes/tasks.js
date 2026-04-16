@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     if (projectId) items = items.filter(t => t.projectId === projectId)
     if (priority) items = items.filter(t => t.priority === priority)
     if (keyword) {
-      const kw = keyword.toLowerCase()
+      const kw = String(keyword).slice(0, 100).toLowerCase()
       items = items.filter(t =>
         t.title.toLowerCase().includes(kw) ||
         (t.description && t.description.toLowerCase().includes(kw))

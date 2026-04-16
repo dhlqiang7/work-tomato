@@ -39,13 +39,16 @@ router.post('/', async (req, res) => {
     if (!title) return res.status(400).json({ error: '项目名称不能为空' })
     if (title.length > 100) return res.status(400).json({ error: '项目名称过长（最多100字）' })
 
+    const color = req.body.color || '#3498DB'
+    if (!/^#[0-9a-fA-F]{6}$/.test(color)) return res.status(400).json({ error: '颜色格式无效' })
+
     const now = new Date().toISOString()
     const item = {
       id: uuidv4(),
       title,
       description: (req.body.description || '').slice(0, 5000),
       relatedPeople: Array.isArray(req.body.relatedPeople) ? req.body.relatedPeople.slice(0, 20) : [],
-      color: req.body.color || '#3498DB',
+      color,
       status: 'active',
       createdAt: now,
       updatedAt: now
