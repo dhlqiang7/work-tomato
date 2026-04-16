@@ -332,7 +332,7 @@ onUnmounted(() => clearTimeout(searchTimer))
 }
 .view-toolbar {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-4);
   gap: var(--sp-4);
   flex-wrap: wrap;
 }
@@ -347,14 +347,16 @@ onUnmounted(() => clearTimeout(searchTimer))
   display: flex; align-items: center; gap: var(--sp-5);
 }
 .filter-group {
-  display: flex; gap: var(--sp-2);
+  display: flex; gap: var(--sp-3); align-items: center;
 }
 .select-sm {
   width: auto; min-width: 110px;
   padding: var(--sp-1) var(--sp-3);
   height: 32px;
   font-size: var(--fs-sm);
+  line-height: 28px;
   padding-right: 28px;
+  box-sizing: border-box;
 }
 
 /* Task list */

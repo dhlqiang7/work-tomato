@@ -155,6 +155,8 @@ onMounted(load)
   font-family: var(--f-body);
   font-weight: var(--fw-medium);
   cursor: pointer;
+  min-width: 52px;
+  text-align: center;
   transition: all var(--t-fast) var(--ease-smooth);
 }
 .period-tab:hover { color: var(--c-text); }

@@ -87,7 +87,7 @@ body {
   --c-elevated:    #262626;
   --c-text:        #ECECEC;
   --c-text-2:      #A0A0A0;
-  --c-text-3:      #707070;
+  --c-text-3:      #787878;
   --c-primary:     #E8634F;
   --c-primary-soft:#2A1511;
   --c-primary-hover:#F07A68;
@@ -110,7 +110,11 @@ body {
 }
 /* 深色模式下 select 箭头用浅色 */
 .dark .select {
-  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238A8A8A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23A0A0A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+/* 深色模式 placeholder 更亮 */
+.dark .input::placeholder, .dark .textarea::placeholder {
+  color: #808080;
 }
 
 /* --- Utility Classes --- */
