@@ -19,7 +19,7 @@
     <!-- 每周专注柱状图 -->
     <div class="chart-section card card-elevated">
       <h3 class="section-title">最近 7 天专注时长</h3>
-      <div class="bar-chart">
+      <div v-if="hasFocusData" class="bar-chart">
         <div v-for="d in weeklyFocus" :key="d.date" class="bar-item">
           <div class="bar-value" v-if="d.minutes > 0">{{ d.minutes }}<small>分</small></div>
           <div class="bar-track">
@@ -27,6 +27,10 @@
           </div>
           <div class="bar-label">{{ d.date }}</div>
         </div>
+      </div>
+      <div v-else class="chart-empty">
+        <div class="chart-empty-icon">📊</div>
+        <div class="chart-empty-text">暂无专注记录，开始你的第一个番茄钟吧</div>
       </div>
     </div>
 
@@ -66,6 +70,7 @@ const statCards = computed(() => [
 ])
 
 const weeklyFocus = computed(() => dashboard.value.weeklyFocus)
+const hasFocusData = computed(() => weeklyFocus.value.some(d => d.minutes > 0))
 const maxMinutes = computed(() => Math.max(...weeklyFocus.value.map(d => d.minutes), 1))
 
 function barHeight(minutes) {
@@ -148,7 +153,7 @@ onMounted(load)
   justify-content: flex-end;
 }
 .bar-value {
-  font-size: var(--fs-xs);
+  font-size: 11px;
   font-family: var(--f-mono);
   color: var(--c-text-2);
   margin-bottom: 4px;
@@ -171,10 +176,20 @@ onMounted(load)
   min-height: 4px;
 }
 .bar-label {
-  font-size: var(--fs-xs);
+  font-size: 11px;
   color: var(--c-text-3);
   margin-top: var(--sp-2);
 }
+
+/* Empty chart */
+.chart-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 140px;
+  color: var(--c-text-3);
+}
+.chart-empty-icon { font-size: 36px; opacity: 0.3; margin-bottom: var(--sp-2); }
+.chart-empty-text { font-size: var(--fs-sm); }
 
 .quick-review {
   padding: var(--sp-4) var(--sp-5);

@@ -248,10 +248,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.view { flex: 1; overflow-y: auto; animation: fadeIn 0.3s var(--ease-smooth); }
+.view { flex: 1; overflow-y: auto; animation: fadeIn 0.3s var(--ease-smooth); display: flex; }
 .pomodoro-layout {
   display: flex; gap: var(--sp-6);
-  max-width: 900px; margin: 0 auto;
+  max-width: 900px; margin: auto;
   padding: var(--sp-8);
   align-items: flex-start;
 }
@@ -342,7 +342,7 @@ onUnmounted(() => {
 /* Sidebar stats */
 .pomodoro-sidebar {
   display: flex; flex-direction: column; gap: var(--sp-3);
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
 }
 .stat-card {
