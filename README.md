@@ -28,6 +28,8 @@
 - **npm** >= 8
 - Windows / macOS / Linux
 
+> 如果你的电脑还没有 Node.js，可以先运行 `env-setup.sh`（macOS/Linux）或 `env-setup.bat`（Windows）一键安装。已有 Node.js 18+ 的用户跳过此步骤。
+
 ## 快速开始
 
 ### 方式一：脚本安装（推荐）
