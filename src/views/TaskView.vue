@@ -482,6 +482,7 @@ onUnmounted(() => clearTimeout(searchTimer))
 .form-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);
 }
+.form-row .form-group + .form-group { margin-top: 0; }
 .complete-task-name {
   font-weight: var(--fw-semibold);
   font-size: var(--fs-md);
