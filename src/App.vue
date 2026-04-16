@@ -1,10 +1,10 @@
 <template>
   <div class="app" :class="{ 'dark': isDark }" :data-theme="isDark ? 'dark' : 'light'">
-    <AppHeader :is-dark="isDark" @toggle-theme="toggleTheme" @search="onSearch" />
+    <AppHeader :is-dark="isDark" @toggle-theme="toggleTheme" />
     <div class="app-body">
       <Sidebar :active-view="currentView" @change-view="changeView" @start-task="onStartTask" />
       <main class="main-content">
-        <TaskView v-if="currentView === 'tasks'" :search-keyword="searchKeyword" @start-pomodoro="onStartTask" />
+        <TaskView v-if="currentView === 'tasks'" @start-pomodoro="onStartTask" />
         <ProjectView v-else-if="currentView === 'projects'" />
         <PomodoroView v-else-if="currentView === 'pomodoro'" :target-task="pomodoroTarget" />
         <StatsView v-else-if="currentView === 'stats'" @go-review="changeView('review')" />
@@ -30,7 +30,6 @@ import ShortcutHelp from './components/common/ShortcutHelp.vue'
 
 const currentView = ref('tasks')
 const isDark = ref(false)
-const searchKeyword = ref('')
 const pomodoroTarget = ref(null)
 const showShortcutHelp = ref(false)
 
@@ -47,11 +46,6 @@ watch(isDark, (val) => {
 
 function changeView(view) {
   currentView.value = view
-}
-
-function onSearch(kw) {
-  searchKeyword.value = kw
-  currentView.value = 'tasks'
 }
 
 function onStartTask(task) {

@@ -5,6 +5,16 @@
       <div class="toolbar-left">
         <h2 class="view-title">任务</h2>
         <div class="filter-group">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              v-model="filter.keyword"
+              class="search-input-sm"
+              placeholder="搜索任务..."
+              @input="onSearch"
+              @keyup.escape="filter.keyword = ''; load()"
+            />
+          </div>
           <select v-model="filter.status" class="select select-sm" @change="load">
             <option value="">全部状态</option>
             <option value="pending">待办</option>
@@ -160,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -184,14 +194,10 @@ const peopleInput = ref('')
 
 const filter = reactive({ status: '', projectId: '', priority: '', keyword: '' })
 let searchTimer = null
-
-// 监听 AppHeader 传入的搜索关键词
-const props = defineProps({ searchKeyword: String })
-watch(() => props.searchKeyword, (kw) => {
-  filter.keyword = kw || ''
+function onSearch() {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(load, 300)
-})
+}
 
 const defaultForm = {
   title: '', description: '', projectId: 'default',
@@ -358,6 +364,36 @@ onUnmounted(() => clearTimeout(searchTimer))
   padding-right: 28px;
   box-sizing: border-box;
 }
+.search-box {
+  position: relative;
+  width: 180px;
+  flex-shrink: 0;
+}
+.search-icon {
+  position: absolute; left: 8px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px; opacity: 0.5;
+  pointer-events: none;
+}
+.search-input-sm {
+  width: 100%; height: 32px;
+  padding: 0 28px 0 28px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-family: var(--f-body);
+  line-height: 28px;
+  box-sizing: border-box;
+  outline: none;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+.search-input-sm:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px var(--c-primary-soft);
+}
+.search-input-sm::placeholder { color: var(--c-text-3); }
 
 /* Task list */
 .task-list {

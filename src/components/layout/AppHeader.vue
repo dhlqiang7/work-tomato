@@ -6,19 +6,6 @@
         <span class="logo-text">Tomato</span>
       </div>
     </div>
-    <div class="header-center">
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input
-          v-model="keyword"
-          class="search-input"
-          placeholder="搜索任务... (Ctrl+K)"
-          @input="$emit('search', keyword)"
-          @keyup.escape="keyword = ''; $emit('search', '')"
-        />
-        <button v-if="keyword" class="search-clear" @click="keyword = ''; $emit('search', '')">✕</button>
-      </div>
-    </div>
     <div class="header-right">
       <button class="btn-icon btn-ghost" :title="isDark ? '切换浅色' : '切换深色'" @click="$emit('toggleTheme')">
         {{ isDark ? '☀️' : '🌙' }}
@@ -47,9 +34,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
 defineProps({ isDark: Boolean })
-defineEmits(['toggleTheme', 'search'])
+defineEmits(['toggleTheme'])
 
-const keyword = ref('')
 const isElectron = ref(false)
 const isMax = ref(false)
 
@@ -57,17 +43,9 @@ function winMinimize() { window.electronAPI?.minimize() }
 function winMaximize() { window.electronAPI?.maximize() }
 function winClose()    { window.electronAPI?.close() }
 
-function onKeydown(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-    e.preventDefault()
-    document.querySelector('.search-input')?.focus()
-  }
-}
-
 let removeMaxListener = null
 
 onMounted(() => {
-  document.addEventListener('keydown', onKeydown)
   isElectron.value = !!window.electronAPI?.isElectron
   if (isElectron.value) {
     window.electronAPI.isMaximized().then(v => isMax.value = v)
@@ -75,7 +53,6 @@ onMounted(() => {
   }
 })
 onUnmounted(() => {
-  document.removeEventListener('keydown', onKeydown)
   if (removeMaxListener) removeMaxListener()
 })
 </script>
@@ -94,14 +71,12 @@ onUnmounted(() => {
   -webkit-app-region: drag;
   user-select: none;
 }
-/* 按钮和输入框区域不可拖拽 */
-.app-header button,
-.app-header input,
-.header-center {
+/* 按钮区域不可拖拽 */
+.app-header button {
   -webkit-app-region: no-drag;
 }
 
-.header-left { flex-shrink: 0; }
+.header-left { flex-shrink: 0; flex: 1; }
 .logo {
   display: flex; align-items: center; gap: var(--sp-2);
 }
@@ -113,48 +88,6 @@ onUnmounted(() => {
   color: var(--c-text);
   letter-spacing: -0.02em;
 }
-.header-center { flex: 1; display: flex; justify-content: center; }
-.search-box {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-}
-.search-icon {
-  position: absolute; left: 12px; top: 50%;
-  transform: translateY(-50%);
-  font-size: 13px;
-  opacity: 0.5;
-  pointer-events: none;
-}
-.search-input {
-  width: 100%;
-  height: 34px;
-  padding: 0 32px 0 36px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-full);
-  background: var(--c-bg);
-  color: var(--c-text);
-  font-size: var(--fs-sm);
-  font-family: var(--f-body);
-  outline: none;
-  transition: all var(--t-fast) var(--ease-smooth);
-}
-.search-input:focus {
-  border-color: var(--c-primary);
-  box-shadow: 0 0 0 3px var(--c-primary-soft);
-  background: var(--c-surface);
-}
-.search-input::placeholder { color: var(--c-text-3); }
-.search-clear {
-  position: absolute; right: 8px; top: 50%;
-  transform: translateY(-50%);
-  background: none; border: none;
-  color: var(--c-text-3); cursor: pointer;
-  font-size: 12px; padding: 4px;
-  border-radius: 50%;
-  transition: color var(--t-fast);
-}
-.search-clear:hover { color: var(--c-text); }
 .header-right { flex-shrink: 0; }
 
 /* 窗口控制按钮 */
