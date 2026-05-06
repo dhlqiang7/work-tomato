@@ -2,7 +2,13 @@
   <div class="view workbench-view">
     <div class="view-toolbar">
       <h2 class="view-title">工作台</h2>
-      <button class="btn" @click="showAddDialog = true">＋ 添加任务</button>
+      <div class="toolbar-actions">
+        <label class="collapse-toggle" title="折叠/展开所有已完成步骤">
+          <input type="checkbox" v-model="collapseDone" @change="onCollapseAll" />
+          <span>折叠已完成</span>
+        </label>
+        <button class="btn" @click="showAddDialog = true">＋ 添加任务</button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading-state">加载中...</div>
@@ -71,6 +77,17 @@
                   @drop.prevent="onConnectorDrop(task, block.dropIdx)"
                 >
                   <div class="flow-connector" :class="{ done: block.connectorDone }"></div>
+                </div>
+
+                <!-- 展开按钮 -->
+                <div
+                  v-if="block.type === 'expand'"
+                  class="flow-expand"
+                  @click="expandTask(block.taskId)"
+                >
+                  <span class="expand-icon">›</span>
+                  <span>{{ block.count }} 步已完成</span>
+                  <span class="expand-hint">点击展开</span>
                 </div>
 
                 <!-- 单步骤节点 -->
@@ -214,6 +231,18 @@ const addTaskId = ref('')
 const availableTasks = ref([])
 
 const flowDrag = ref({})
+const collapseDone = ref(false)
+
+function onCollapseAll() {
+  // 清除所有任务的独立展开状态
+  for (const t of workbenchTasks.value) {
+    delete t._expandDone
+  }
+}
+function expandTask(taskId) {
+  const t = workbenchTasks.value.find(t => t.id === taskId)
+  if (t) t._expandDone = true
+}
 
 function isDraggable(step) {
   return step.type !== 'start' && step.type !== 'end'
@@ -231,10 +260,46 @@ function isActiveStep(task, idx) {
 function flowBlocks(task) {
   const steps = task.steps || []
   if (steps.length === 0) return []
+  const collapsed = collapseDone.value && !task._expandDone
   const blocks = []
 
   let i = 0
   while (i < steps.length) {
+    const step = steps[i]
+
+    // 折叠：收集连续的已完成步骤（跳过start/end）
+    if (collapsed && step.status === 'done' && step.type !== 'start' && step.type !== 'end') {
+      const doneGroup = []
+      const firstIdx = i
+      while (i < steps.length && steps[i].status === 'done' && steps[i].type !== 'start' && steps[i].type !== 'end') {
+        doneGroup.push(steps[i])
+        i++
+      }
+      if (doneGroup.length === 1) {
+        blocks.push({
+          key: 'step-' + firstIdx, type: 'single', step: doneGroup[0], stepIdx: firstIdx,
+          connector: firstIdx > 0, connectorDone: firstIdx > 0 ? steps[firstIdx - 1]?.status === 'done' : false,
+          dropIdx: firstIdx
+        })
+      } else {
+        // 折叠：只显示最后一个，上方加展开按钮
+        const last = doneGroup[doneGroup.length - 1]
+        blocks.push({
+          key: 'expand-' + firstIdx, type: 'expand',
+          count: doneGroup.length - 1, taskId: task.id,
+          connector: firstIdx > 0,
+          connectorDone: firstIdx > 0 ? steps[firstIdx - 1]?.status === 'done' : false,
+          dropIdx: firstIdx
+        })
+        blocks.push({
+          key: 'step-' + (firstIdx + doneGroup.length - 1), type: 'single',
+          step: last, stepIdx: firstIdx + doneGroup.length - 1,
+          connector: false, connectorDone: false, dropIdx: firstIdx + doneGroup.length - 1
+        })
+      }
+      continue
+    }
+
     // 收集连续的分支
     if (steps[i].type === 'branch') {
       const branchSteps = []
@@ -246,21 +311,15 @@ function flowBlocks(task) {
         i++
       }
       blocks.push({
-        key: 'branch-' + firstIdx,
-        type: 'branches',
-        steps: branchSteps,
-        firstIdx,
-        stepIdxMap,
+        key: 'branch-' + firstIdx, type: 'branches',
+        steps: branchSteps, firstIdx, stepIdxMap,
         connector: firstIdx > 0,
         connectorDone: firstIdx > 0 ? steps[firstIdx - 1]?.status === 'done' : false,
         dropIdx: firstIdx
       })
     } else {
       blocks.push({
-        key: 'step-' + i,
-        type: 'single',
-        step: steps[i],
-        stepIdx: i,
+        key: 'step-' + i, type: 'single', step: steps[i], stepIdx: i,
         connector: i > 0,
         connectorDone: i > 0 ? steps[i - 1]?.status === 'done' : false,
         dropIdx: i
@@ -565,6 +624,15 @@ onMounted(load)
   font-family: var(--f-display); font-size: var(--fs-2xl);
   font-weight: var(--fw-bold); color: var(--c-text);
 }
+.toolbar-actions {
+  display: flex; align-items: center; gap: var(--sp-3);
+}
+.collapse-toggle {
+  display: flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--fs-sm); color: var(--c-text-3);
+  cursor: pointer; user-select: none;
+}
+.collapse-toggle input { accent-color: var(--c-primary); }
 
 .swimlanes {
   display: grid;
@@ -661,6 +729,20 @@ onMounted(load)
   transition: background var(--t-fast);
 }
 .flow-connector.done { background: var(--c-green); }
+
+/* Expand block */
+.flow-expand {
+  display: flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs); color: var(--c-text-3);
+  cursor: pointer; border-radius: var(--radius-sm);
+  transition: all var(--t-fast);
+  user-select: none;
+}
+.flow-expand:hover { background: var(--c-primary-soft); color: var(--c-primary); }
+.expand-icon { font-size: 16px; line-height: 1; }
+.expand-hint { opacity: 0; transition: opacity var(--t-fast); }
+.flow-expand:hover .expand-hint { opacity: 0.7; }
 
 /* Branch row */
 .branch-row {
