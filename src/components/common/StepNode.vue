@@ -18,16 +18,16 @@
       <span class="node-icon">{{ icon }}</span>
       <span class="node-type" :class="'badge-' + typeColor">{{ typeLabel }}</span>
       <div class="node-spacer"></div>
+      <div class="node-hover-actions">
+        <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="emit('edit', step)" title="编辑">✏️</button>
+        <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="emit('delete', task, step)" title="删除">🗑️</button>
+      </div>
       <button
         class="node-status-btn"
         :class="step.status === 'done' ? 'is-done' : 'is-undone'"
         @click.stop="emit(step.status === 'done' ? 'markUndone' : 'markDone', task, step)"
         :title="step.status === 'done' ? '回退未完成' : '标记完成'"
       >{{ step.status === 'done' ? '✓' : '···' }}</button>
-      <div class="node-hover-actions">
-        <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="emit('edit', step)" title="编辑">✏️</button>
-        <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="emit('delete', task, step)" title="删除">🗑️</button>
-      </div>
     </div>
     <div class="node-title-row">
       <input

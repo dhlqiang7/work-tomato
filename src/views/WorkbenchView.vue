@@ -122,7 +122,7 @@
               </select>
               <button class="btn btn-sm btn-sm-plain" @click="quickAddStep(task)">＋</button>
             </div>
-            <button class="btn btn-sm" @click="markAllStepsDone(task)" v-if="task.status !== 'done'">✓ 标记全部完成</button>
+            <button class="btn btn-sm btn-muted" @click="markAllStepsDone(task)" v-if="task.status !== 'done'">✓ 标记全部完成</button>
             <span v-else class="lane-done-label">✅ 已完成</span>
           </div>
         </div>
@@ -576,6 +576,8 @@ onMounted(load)
 }
 .select-sm-plain:focus { border-color: var(--c-border-2); }
 .btn-sm-plain { height: 30px !important; }
+.btn-muted { color: var(--c-text-3); }
+.btn-muted:hover { color: var(--c-text-2); }
 .lane-done-label {
   text-align: center; font-size: var(--fs-sm);
   color: var(--c-green); font-weight: var(--fw-medium);

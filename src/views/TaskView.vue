@@ -16,7 +16,7 @@
             />
           </div>
           <select v-model="filter.status" class="select select-sm" @change="load">
-            <option value="undone">非已完成</option>
+            <option value="undone">未完成</option>
             <option value="">全部状态</option>
             <option value="pending">待办</option>
             <option value="active">进行中</option>
@@ -203,14 +203,14 @@
         </div>
       </div>
       <div class="step-add">
-        <input v-model="newStepTitle" class="input" placeholder="新步骤标题" @keyup.enter="addStep" style="flex:1" />
-        <select v-model="newStepType" class="select select-sm" style="width:auto">
+        <input v-model="newStepTitle" class="step-add-input" placeholder="新步骤标题" @keyup.enter="addStep" />
+        <select v-model="newStepType" class="step-add-select">
           <option value="start">开始</option>
           <option value="step">步骤</option>
           <option value="branch">分支</option>
           <option value="end">结束</option>
         </select>
-        <button class="btn btn-primary btn-sm" @click="addStep">添加</button>
+        <button class="btn btn-sm step-add-btn" @click="addStep">添加</button>
       </div>
       <template #footer>
         <button class="btn" @click="showStepsModal = false">关闭</button>
@@ -701,4 +701,38 @@ onUnmounted(() => clearTimeout(searchTimer))
 .step-add {
   display: flex; gap: var(--sp-2); align-items: center;
 }
+.step-add-input {
+  flex: 1; height: 32px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-family: var(--f-body);
+  padding: 0 var(--sp-3);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--t-fast);
+}
+.step-add-input:focus { border-color: var(--c-primary); box-shadow: 0 0 0 2px var(--c-primary-soft); }
+.step-add-select {
+  width: auto; height: 32px;
+  font-size: var(--fs-sm);
+  padding: 0 24px 0 var(--sp-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: var(--f-body);
+  outline: none;
+  cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%237A6B5D' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  box-sizing: border-box;
+  transition: border-color var(--t-fast);
+}
+.step-add-select:focus { border-color: var(--c-primary); box-shadow: 0 0 0 2px var(--c-primary-soft); }
+.step-add-btn { height: 32px; }
 </style>
