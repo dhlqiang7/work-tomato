@@ -42,4 +42,4 @@ No test framework is configured. No linter is configured.
 - Data files: `data/tasks.json`, `data/projects.json`, `data/pomodoros.json` (gitignored, auto-created)
 - Default project (id `"default"`) is auto-created on server startup via `initDefaultProject()`
 - Vite root is `src/`, output goes to `dist/` (project root level)
-- `.npmrc` configures Huawei Cloud mirror for npm registry
+- `.npmrc.example` 为华为云镜像源参考，默认使用系统 npm 源，需要时复制为 `.npmrc`

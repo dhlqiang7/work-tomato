@@ -18,8 +18,12 @@
       <span class="node-icon">{{ icon }}</span>
       <span class="node-type" :class="'badge-' + typeColor">{{ typeLabel }}</span>
       <div class="node-spacer"></div>
-      <button v-if="step.status !== 'done'" class="node-done-btn" @click.stop="emit('markDone', task, step)" title="标记完成">✓</button>
-      <button v-else class="node-undo-btn" @click.stop="emit('markUndone', task, step)" title="回退未完成">↩</button>
+      <button
+        class="node-status-btn"
+        :class="step.status === 'done' ? 'is-done' : 'is-undone'"
+        @click.stop="emit(step.status === 'done' ? 'markUndone' : 'markDone', task, step)"
+        :title="step.status === 'done' ? '回退未完成' : '标记完成'"
+      >{{ step.status === 'done' ? '✓' : '○' }}</button>
       <div class="node-hover-actions">
         <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="emit('edit', step)" title="编辑">✏️</button>
         <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="emit('delete', task, step)" title="删除">🗑️</button>
@@ -135,23 +139,26 @@ function onDS(e) {
   border-radius: var(--radius-full); flex-shrink: 0;
 }
 
-.node-done-btn, .node-undo-btn {
+.node-status-btn {
   width: 22px; height: 22px;
-  border: 2px solid var(--c-green);
   border-radius: 50%;
+  border: 2px solid var(--c-text-3);
   background: transparent;
-  color: var(--c-green);
+  color: var(--c-text-3);
   font-size: 12px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all var(--t-fast);
   flex-shrink: 0;
 }
-.node-undo-btn { border-color: var(--c-orange); color: var(--c-orange); font-size: 13px; }
-.flow-node:hover .node-done-btn,
-.flow-node:hover .node-undo-btn { opacity: 1; }
-.node-done-btn:hover { background: var(--c-green); color: #fff; }
-.node-undo-btn:hover { background: var(--c-orange); color: #fff; }
+.node-status-btn:hover { border-color: var(--c-green); color: var(--c-green); }
+.node-status-btn.is-done {
+  border-color: var(--c-green); color: var(--c-green);
+  background: var(--c-green-soft);
+}
+.node-status-btn.is-done:hover {
+  background: var(--c-green); color: #fff;
+}
 
 .node-hover-actions {
   display: flex; gap: 1px;

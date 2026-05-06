@@ -2,7 +2,7 @@
   <div class="view workbench-view">
     <div class="view-toolbar">
       <h2 class="view-title">工作台</h2>
-      <button class="btn btn-primary" @click="showAddDialog = true">＋ 添加任务</button>
+      <button class="btn" @click="showAddDialog = true">＋ 添加任务</button>
     </div>
 
     <div v-if="loading" class="loading-state">加载中...</div>
@@ -116,11 +116,11 @@
                 placeholder="快速添加步骤..."
                 @keyup.enter="quickAddStep(task)"
               />
-              <select v-model="task._newStepType" class="select select-sm" style="width:auto;min-width:70px">
+              <select v-model="task._newStepType" class="select select-sm select-muted" style="width:auto;min-width:70px">
                 <option value="step">步骤</option>
                 <option value="branch">分支</option>
               </select>
-              <button class="btn btn-sm btn-primary" @click="quickAddStep(task)">＋</button>
+              <button class="btn btn-sm" @click="quickAddStep(task)">＋</button>
             </div>
             <button class="btn btn-sm" @click="markAllStepsDone(task)" v-if="task.status !== 'done'">✓ 标记全部完成</button>
             <span v-else class="lane-done-label">✅ 已完成</span>
@@ -556,6 +556,11 @@ onMounted(load)
 }
 .lane-quick-add { display: flex; gap: var(--sp-1); }
 .input-sm { height: 30px; font-size: var(--fs-sm); padding: 0 var(--sp-2); flex: 1; }
+.select-muted {
+  color: var(--c-text-2); border-color: var(--c-border);
+  background: var(--c-surface);
+}
+.select-muted:focus { border-color: var(--c-border-2); box-shadow: none; }
 .lane-done-label {
   text-align: center; font-size: var(--fs-sm);
   color: var(--c-green); font-weight: var(--fw-medium);

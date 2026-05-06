@@ -30,6 +30,8 @@
 
 > 如果你的电脑还没有 Node.js，可以先运行 `env-setup.sh`（macOS/Linux）或 `env-setup.bat`（Windows）一键安装。已有 Node.js 18+ 的用户跳过此步骤。
 
+> 如果 npm 默认源下载缓慢，可将 `.npmrc.example` 复制为 `.npmrc` 启用华为云镜像源：`cp .npmrc.example .npmrc`
+
 ## 快速开始
 
 ### 方式一：脚本安装（推荐）
