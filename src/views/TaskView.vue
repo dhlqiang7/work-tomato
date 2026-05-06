@@ -16,15 +16,12 @@
             />
           </div>
           <select v-model="filter.status" class="select select-sm" @change="load">
+            <option value="undone">非已完成</option>
             <option value="">全部状态</option>
             <option value="pending">待办</option>
             <option value="active">进行中</option>
             <option value="done">已完成</option>
           </select>
-          <label class="filter-check">
-            <input type="checkbox" v-model="filter.onlyUndone" @change="load" />
-            <span>仅未完成</span>
-          </label>
           <select v-model="filter.projectId" class="select select-sm" @change="load">
             <option value="">全部项目</option>
             <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option>
@@ -247,7 +244,7 @@ const completeResult = ref('')
 const tagsInput = ref('')
 const peopleInput = ref('')
 
-const filter = reactive({ status: '', projectId: '', priority: '', keyword: '', onlyUndone: false })
+const filter = reactive({ status: 'undone', projectId: '', priority: '', keyword: '' })
 let searchTimer = null
 function onSearch() {
   clearTimeout(searchTimer)
@@ -264,7 +261,7 @@ const form = reactive({ ...defaultForm })
 async function load() {
   loading.value = true
   const params = new URLSearchParams()
-  if (filter.status) {
+  if (filter.status && filter.status !== 'undone') {
     params.set('status', filter.status)
   }
   if (filter.projectId) params.set('projectId', filter.projectId)
@@ -279,7 +276,7 @@ async function load() {
     projects.value = projectList
     const projectMap = Object.fromEntries(projectList.map(p => [p.id, p.title]))
     let result = taskList.map(t => ({ ...t, projectTitle: projectMap[t.projectId] || '日常工作' }))
-    if (filter.onlyUndone) {
+    if (filter.status === 'undone') {
       result = result.filter(t => t.status !== 'done')
     }
     tasks.value = result
@@ -646,16 +643,6 @@ onUnmounted(() => clearTimeout(searchTimer))
 .task-list-enter-from { opacity: 0; transform: translateY(-8px); }
 .task-list-leave-to { opacity: 0; transform: translateX(20px); }
 .task-list-move { transition: transform 0.3s var(--ease-smooth); }
-
-/* Filter checkbox */
-.filter-check {
-  display: flex; align-items: center; gap: var(--sp-1);
-  font-size: var(--fs-sm); color: var(--c-text-2);
-  cursor: pointer; white-space: nowrap; user-select: none;
-}
-.filter-check input[type="checkbox"] {
-  accent-color: var(--c-primary);
-}
 
 /* Step management */
 .steps-list {
