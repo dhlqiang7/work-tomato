@@ -116,11 +116,11 @@
                 placeholder="快速添加步骤..."
                 @keyup.enter="quickAddStep(task)"
               />
-              <select v-model="task._newStepType" class="select select-sm select-muted" style="width:auto;min-width:70px">
+              <select v-model="task._newStepType" class="select-sm-plain" style="width:auto;min-width:70px">
                 <option value="step">步骤</option>
                 <option value="branch">分支</option>
               </select>
-              <button class="btn btn-sm" @click="quickAddStep(task)">＋</button>
+              <button class="btn btn-sm btn-sm-plain" @click="quickAddStep(task)">＋</button>
             </div>
             <button class="btn btn-sm" @click="markAllStepsDone(task)" v-if="task.status !== 'done'">✓ 标记全部完成</button>
             <span v-else class="lane-done-label">✅ 已完成</span>
@@ -554,13 +554,28 @@ onMounted(load)
   padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--c-border);
 }
-.lane-quick-add { display: flex; gap: var(--sp-1); }
+.lane-quick-add { display: flex; gap: var(--sp-1); align-items: center; }
+.lane-actions .btn-sm { height: 30px; }
 .input-sm { height: 30px; font-size: var(--fs-sm); padding: 0 var(--sp-2); flex: 1; }
-.select-muted {
-  color: var(--c-text-2); border-color: var(--c-border);
-  background: var(--c-surface);
+.select-sm-plain {
+  height: 30px; font-size: var(--fs-sm);
+  padding: 0 22px 0 var(--sp-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--c-text-2);
+  font-family: var(--f-body);
+  outline: none;
+  cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A99E93' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  box-sizing: border-box;
+  transition: border-color var(--t-fast);
 }
-.select-muted:focus { border-color: var(--c-border-2); box-shadow: none; }
+.select-sm-plain:focus { border-color: var(--c-border-2); }
+.btn-sm-plain { height: 30px !important; }
 .lane-done-label {
   text-align: center; font-size: var(--fs-sm);
   color: var(--c-green); font-weight: var(--fw-medium);
