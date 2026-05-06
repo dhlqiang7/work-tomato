@@ -41,49 +41,38 @@
             </div>
             <template v-else>
               <template v-for="(block, bi) in flowBlocks(task)" :key="block.key">
-                <!-- 连接线（也是拖放目标） -->
+                <!-- 连接区（整行宽度的拖放目标） -->
                 <div
                   v-if="block.connector"
-                  class="flow-connector"
-                  :class="{ done: block.connectorDone, 'drag-over': isConnectorDragOver(task, block) }"
+                  class="flow-connector-wrap"
+                  :class="{ 'drag-over': isConnectorDragOver(task, block) }"
                   @dragover.prevent="onConnectorDragOver(task, block.dropIdx)"
                   @dragleave="onConnectorDragLeave(task)"
                   @drop.prevent="onConnectorDrop(task, block.dropIdx)"
-                ></div>
+                >
+                  <div class="flow-connector" :class="{ done: block.connectorDone }"></div>
+                </div>
 
                 <!-- 单步骤节点 -->
-                <div
-                  v-if="block.type === 'single'"
-                  class="flow-node"
-                  :class="nodeClasses(task, block.step, block.stepIdx)"
-                  :draggable="isDraggable(block.step)"
-                  @dragstart="onFlowDragStart(task, block.stepIdx, $event)"
-                  @dragover.prevent="onNodeDragOver(task, block.stepIdx)"
-                  @dragleave="onNodeDragLeave(task)"
-                  @drop.prevent="onNodeDrop(task, block.stepIdx)"
-                  @dragend="onFlowDragEnd(task)"
-                >
-                  <span v-if="isDraggable(block.step)" class="node-drag-handle" title="拖拽排序">⠿</span>
-                  <span v-else class="node-drag-handle node-locked" title="固定位置">🔒</span>
-                  <span class="node-icon">{{ stepIcon(block.step) }}</span>
-                  <input
-                    v-if="block.step._editing"
-                    v-model="block.step._editTitle"
-                    class="node-edit-input"
-                    @click.stop
-                    @keyup.enter="saveStepTitle(task, block.step)"
-                    @keyup.escape="block.step._editing = false"
-                    @blur="saveStepTitle(task, block.step)"
+                <template v-if="block.type === 'single'">
+                  <StepNode
+                    :step="block.step"
+                    :task="task"
+                    :step-idx="block.stepIdx"
+                    :done="block.step.status === 'done'"
+                    :active="isActiveStep(task, block.stepIdx)"
+                    @mark-done="markStepDone"
+                    @mark-undone="markStepUndone"
+                    @edit="startEditStep"
+                    @save-title="saveStepTitle"
+                    @delete="deleteFlowStep"
+                    @drag-start="onFlowDragStart"
+                    @drag-over-node="onNodeDragOver"
+                    @drag-leave-node="onNodeDragLeave"
+                    @drop-node="onNodeDrop"
+                    @drag-end="onFlowDragEnd"
                   />
-                  <span v-else class="node-title" @dblclick.stop="startEditStep(block.step)">{{ block.step.title }}</span>
-                  <span class="node-type" :class="'badge-' + stepTypeColor(block.step.type)">{{ stepTypeLabel(block.step.type) }}</span>
-                  <button v-if="block.step.status !== 'done'" class="node-done-btn" @click.stop="markStepDone(task, block.step)" title="标记完成">✓</button>
-                  <button v-else class="node-undo-btn" @click.stop="markStepUndone(task, block.step)" title="回退未完成">↩</button>
-                  <div class="node-hover-actions">
-                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="startEditStep(block.step)" title="编辑">✏️</button>
-                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="deleteFlowStep(task, block.step)" title="删除">🗑️</button>
-                  </div>
-                </div>
+                </template>
 
                 <!-- 分支组（横向并排） -->
                 <div
@@ -93,39 +82,26 @@
                   @dragleave="onBranchRowDragLeave(task)"
                   @drop.prevent="onBranchRowDrop(task, block.firstIdx)"
                 >
-                  <div
+                  <StepNode
                     v-for="bs in block.steps"
                     :key="bs.id"
-                    class="flow-node branch-node"
-                    :class="nodeClasses(task, bs, block.stepIdxMap[bs.id])"
-                    :draggable="isDraggable(bs)"
-                    @dragstart.stop="onFlowDragStart(task, block.stepIdxMap[bs.id], $event)"
-                    @dragover.prevent="onNodeDragOver(task, block.stepIdxMap[bs.id])"
-                    @dragleave="onNodeDragLeave(task)"
-                    @drop.prevent="onNodeDrop(task, block.stepIdxMap[bs.id])"
-                    @dragend="onFlowDragEnd(task)"
-                  >
-                    <span v-if="isDraggable(bs)" class="node-drag-handle" title="拖拽排序">⠿</span>
-                    <span v-else class="node-drag-handle node-locked">🔒</span>
-                    <span class="node-icon">{{ stepIcon(bs) }}</span>
-                    <input
-                      v-if="bs._editing"
-                      v-model="bs._editTitle"
-                      class="node-edit-input"
-                      @click.stop
-                      @keyup.enter="saveStepTitle(task, bs)"
-                      @keyup.escape="bs._editing = false"
-                      @blur="saveStepTitle(task, bs)"
-                    />
-                    <span v-else class="node-title" @dblclick.stop="startEditStep(bs)">{{ bs.title }}</span>
-                    <span class="node-type" :class="'badge-' + stepTypeColor(bs.type)">{{ stepTypeLabel(bs.type) }}</span>
-                    <button v-if="bs.status !== 'done'" class="node-done-btn" @click.stop="markStepDone(task, bs)" title="标记完成">✓</button>
-                    <button v-else class="node-undo-btn" @click.stop="markStepUndone(task, bs)" title="回退未完成">↩</button>
-                    <div class="node-hover-actions">
-                      <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="startEditStep(bs)" title="编辑">✏️</button>
-                      <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="deleteFlowStep(task, bs)" title="删除">🗑️</button>
-                    </div>
-                  </div>
+                    :step="bs"
+                    :task="task"
+                    :step-idx="block.stepIdxMap[bs.id]"
+                    :done="bs.status === 'done'"
+                    :active="isActiveStep(task, block.stepIdxMap[bs.id])"
+                    :in-branch="true"
+                    @mark-done="markStepDone"
+                    @mark-undone="markStepUndone"
+                    @edit="startEditStep"
+                    @save-title="saveStepTitle"
+                    @delete="deleteFlowStep"
+                    @drag-start="onFlowDragStart"
+                    @drag-over-node="onNodeDragOver"
+                    @drag-leave-node="onNodeDragLeave"
+                    @drop-node="onNodeDrop"
+                    @drag-end="onFlowDragEnd"
+                  />
                 </div>
               </template>
             </template>
@@ -179,6 +155,7 @@ import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import StepNode from '@/components/common/StepNode.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
@@ -193,25 +170,8 @@ const availableTasks = ref([])
 
 const flowDrag = ref({})
 
-const stepTypeLabels = { start: '开始', step: '步骤', branch: '分支', end: '结束' }
-function stepTypeLabel(type) { return stepTypeLabels[type] || '步骤' }
-function stepTypeColor(type) {
-  return { start: 'green', step: 'blue', branch: 'orange', end: 'primary' }[type] || 'blue'
-}
-function stepIcon(step) {
-  return { start: '▶', step: '●', branch: '◇', end: '■' }[step.type] || '●'
-}
-
-// 开始/结束不可拖动
 function isDraggable(step) {
   return step.type !== 'start' && step.type !== 'end'
-}
-
-function nodeClasses(task, step, idx) {
-  return [
-    'node-' + step.type,
-    { 'node-done': step.status === 'done', 'node-active': isActiveStep(task, idx) }
-  ]
 }
 
 function isActiveStep(task, idx) {
@@ -558,118 +518,22 @@ onMounted(load)
   color: var(--c-text-3); font-size: var(--fs-sm);
 }
 
+/* Connector wrap — 整行宽度的拖放目标 */
+.flow-connector-wrap {
+  height: 24px;
+  display: flex; align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast);
+  border-radius: var(--radius-sm);
+  margin: 2px 0;
+}
+.flow-connector-wrap.drag-over { background: var(--c-primary-soft); }
 .flow-connector {
-  width: 2px; height: 18px;
+  width: 2px; height: 100%;
   background: var(--c-border-2);
-  margin-left: 18px;
-  transition: background var(--t-fast), height var(--t-fast);
+  transition: background var(--t-fast);
 }
 .flow-connector.done { background: var(--c-green); }
-.flow-connector.drag-over {
-  background: var(--c-primary);
-  height: 28px;
-  border-radius: 1px;
-}
-
-/* Node */
-.flow-node {
-  display: flex; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-2);
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--c-border);
-  background: var(--c-surface);
-  cursor: default;
-  transition: all var(--t-fast) var(--ease-smooth);
-  position: relative;
-}
-.flow-node:hover { border-color: var(--c-primary); }
-.flow-node[draggable="true"] { cursor: grab; }
-.flow-node[draggable="true"]:active { cursor: grabbing; }
-
-.flow-node.node-start { border-left: 3px solid var(--c-green); }
-.flow-node.node-end   { border-left: 3px solid var(--c-primary); }
-.flow-node.node-branch{ border-left: 3px solid var(--c-orange); }
-.flow-node.node-step  { border-left: 3px solid var(--c-blue); }
-
-.flow-node.node-done {
-  opacity: 0.7;
-  background: var(--c-green-soft);
-  border-color: var(--c-green);
-}
-.flow-node.node-done .node-icon { color: var(--c-green); }
-.flow-node.node-done .node-title {
-  text-decoration: line-through;
-  color: var(--c-text-3);
-}
-
-.flow-node.node-active {
-  border-color: var(--c-primary);
-  box-shadow: 0 0 0 2px var(--c-primary-soft);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.node-drag-handle {
-  color: var(--c-text-3); font-size: 15px;
-  cursor: grab; line-height: 1; flex-shrink: 0; user-select: none;
-}
-.node-drag-handle:active { cursor: grabbing; }
-.node-drag-handle.node-locked {
-  cursor: default; font-size: 11px;
-}
-
-.node-icon {
-  font-size: 13px; width: 18px; text-align: center;
-  flex-shrink: 0; color: var(--c-text-2);
-}
-.node-title { flex: 1; font-size: var(--fs-sm); font-weight: var(--fw-medium); }
-.node-type {
-  font-size: var(--fs-xs); padding: 1px 5px;
-  border-radius: var(--radius-full); flex-shrink: 0;
-}
-.node-done-btn, .node-undo-btn {
-  width: 22px; height: 22px;
-  border: 2px solid var(--c-green);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--c-green);
-  font-size: 12px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all var(--t-fast);
-  flex-shrink: 0;
-}
-.node-undo-btn {
-  border-color: var(--c-orange);
-  color: var(--c-orange);
-  font-size: 13px;
-}
-.flow-node:hover .node-done-btn, .flow-node:hover .node-undo-btn { opacity: 1; }
-.node-done-btn:hover { background: var(--c-green); color: #fff; }
-.node-undo-btn:hover { background: var(--c-orange); color: #fff; }
-
-.node-hover-actions {
-  display: flex; gap: 1px;
-  opacity: 0;
-  transition: opacity var(--t-fast);
-}
-.flow-node:hover .node-hover-actions { opacity: 1; }
-.node-action-btn {
-  width: 24px; height: 24px;
-  padding: 0; font-size: 12px;
-}
-.node-edit-input {
-  flex: 1;
-  border: 1px solid var(--c-primary);
-  border-radius: var(--radius-sm);
-  background: var(--c-surface);
-  color: var(--c-text);
-  font-size: var(--fs-sm);
-  padding: 0 var(--sp-1);
-  height: 24px;
-  outline: none;
-  font-family: var(--f-body);
-  min-width: 0;
-}
 
 /* Branch row */
 .branch-row {
@@ -689,7 +553,6 @@ onMounted(load)
   display: flex; flex-direction: column; gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--c-border);
-  background: var(--c-bg);
 }
 .lane-quick-add { display: flex; gap: var(--sp-1); }
 .input-sm { height: 30px; font-size: var(--fs-sm); padding: 0 var(--sp-2); flex: 1; }
