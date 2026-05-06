@@ -7,18 +7,20 @@
 
     <div v-if="loading" class="loading-state">加载中...</div>
     <template v-else>
-      <!-- 空状态 -->
       <div v-if="workbenchTasks.length === 0" class="empty-state">
         <div class="icon">🖥️</div>
         <div class="title">工作台为空</div>
         <div class="desc">在任务页分解步骤后，点击「添加任务」将任务加入工作台并行处理</div>
       </div>
 
-      <!-- 泳道区域 -->
       <div v-else class="swimlanes" :style="{ '--lane-count': workbenchTasks.length }">
-        <div v-for="task in workbenchTasks" :key="task.id" class="lane">
-          <!-- 任务背景卡片 -->
-          <div class="lane-header card">
+        <div
+          v-for="task in workbenchTasks"
+          :key="task.id"
+          class="lane card card-elevated"
+        >
+          <!-- 任务头部 -->
+          <div class="lane-header">
             <div class="lane-title-row">
               <span class="lane-priority" :class="'priority-' + task.priority">{{ task.priority }}</span>
               <span class="lane-title">{{ task.title }}</span>
@@ -38,19 +40,28 @@
               暂无步骤，请在任务页分解
             </div>
             <template v-else>
-              <div v-for="(step, si) in task.steps" :key="step.id" class="flow-node-wrap">
-                <!-- 连接线 -->
+              <div
+                v-for="(step, si) in task.steps"
+                :key="step.id"
+                class="flow-node-wrap"
+              >
                 <div v-if="si > 0" class="flow-connector" :class="{ done: task.steps[si-1]?.status === 'done' }"></div>
 
-                <!-- 步骤节点 -->
                 <div
                   class="flow-node"
                   :class="[
                     'node-' + step.type,
                     { 'node-done': step.status === 'done', 'node-active': isActiveStep(task, si) }
                   ]"
+                  draggable="true"
+                  @dragstart="onFlowDragStart(task, si, $event)"
+                  @dragover.prevent="onFlowDragOver(task, si)"
+                  @dragleave="onFlowDragLeave(task)"
+                  @drop.prevent="onFlowDrop(task, si)"
+                  @dragend="onFlowDragEnd(task)"
                   @click="toggleStep(task, step, si)"
                 >
+                  <span class="node-drag-handle" title="拖拽排序">⠿</span>
                   <span class="node-icon">{{ stepIcon(step) }}</span>
                   <span class="node-title">{{ step.title }}</span>
                   <span class="node-type" :class="'badge-' + stepTypeColor(step.type)">{{ stepTypeLabel(step.type) }}</span>
@@ -68,8 +79,13 @@
                 class="input input-sm"
                 placeholder="快速添加步骤..."
                 @keyup.enter="quickAddStep(task)"
-                style="flex:1"
               />
+              <select v-model="task._newStepType" class="select select-sm" style="width:auto;min-width:70px">
+                <option value="step">步骤</option>
+                <option value="start">开始</option>
+                <option value="branch">分支</option>
+                <option value="end">结束</option>
+              </select>
               <button class="btn btn-sm btn-primary" @click="quickAddStep(task)">＋</button>
             </div>
             <button class="btn btn-sm" @click="markTaskDone(task)" v-if="task.status !== 'done'">✓ 标记完成</button>
@@ -79,7 +95,6 @@
       </div>
     </template>
 
-    <!-- 添加任务对话框 -->
     <Modal v-model="showAddDialog" title="添加任务到工作台" width="480px">
       <div class="form-group">
         <label class="form-label">选择任务</label>
@@ -107,7 +122,7 @@ import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
-const { get, post, put, del } = useApi()
+const { get, post, put } = useApi()
 const toast = useToast()
 const confirmDialog = ref(null)
 const loading = ref(true)
@@ -116,8 +131,10 @@ const workbenchTasks = ref([])
 const allTasks = ref([])
 const showAddDialog = ref(false)
 const addTaskId = ref('')
-
 const availableTasks = ref([])
+
+// 拖拽状态（按 taskId 存储）
+const flowDrag = ref({})
 
 const stepTypeLabels = { start: '开始', step: '步骤', branch: '分支', end: '结束' }
 function stepTypeLabel(type) { return stepTypeLabels[type] || '步骤' }
@@ -129,7 +146,6 @@ function stepIcon(step) {
 }
 
 function isActiveStep(task, idx) {
-  // 第一个未完成的步骤为当前步骤
   const steps = task.steps || []
   if (steps.length === 0) return false
   const firstUndone = steps.findIndex(s => s.status !== 'done')
@@ -142,21 +158,16 @@ async function load() {
   try {
     const tasks = await get('/tasks')
     allTasks.value = tasks
-
-    // 加载工作台任务
     const wbTasks = tasks.filter(t => t.inWorkbench)
-    // 并行加载每个工作台任务的步骤
     const withSteps = await Promise.all(wbTasks.map(async (t) => {
       try {
         const steps = await get('/steps?taskId=' + t.id)
-        return { ...t, steps, _newStepTitle: '' }
+        return { ...t, steps, _newStepTitle: '', _newStepType: 'step' }
       } catch {
-        return { ...t, steps: [], _newStepTitle: '' }
+        return { ...t, steps: [], _newStepTitle: '', _newStepType: 'step' }
       }
     }))
     workbenchTasks.value = withSteps
-
-    // 可用于添加的任务（非已完成、未在工作台）
     availableTasks.value = tasks.filter(t => t.status !== 'done' && !t.inWorkbench)
   } catch (e) {
     toast.error('加载失败')
@@ -197,10 +208,10 @@ async function toggleStep(task, step, idx) {
 async function markStepDone(task, step) {
   try {
     await put('/steps/' + step.id, { status: 'done' })
-    // 刷新该任务的步骤
-    const steps = await get('/steps?taskId=' + task.id)
     const wbTask = workbenchTasks.value.find(t => t.id === task.id)
-    if (wbTask) wbTask.steps = steps
+    if (wbTask) {
+      wbTask.steps = await get('/steps?taskId=' + task.id)
+    }
   } catch (e) {
     toast.error(e.message)
   }
@@ -210,11 +221,12 @@ async function quickAddStep(task) {
   const title = (task._newStepTitle || '').trim()
   if (!title) return
   try {
-    await post('/steps', { taskId: task.id, title, type: 'step' })
+    await post('/steps', { taskId: task.id, title, type: task._newStepType || 'step' })
     task._newStepTitle = ''
-    const steps = await get('/steps?taskId=' + task.id)
     const wbTask = workbenchTasks.value.find(t => t.id === task.id)
-    if (wbTask) wbTask.steps = steps
+    if (wbTask) {
+      wbTask.steps = await get('/steps?taskId=' + task.id)
+    }
   } catch (e) {
     toast.error(e.message)
   }
@@ -229,6 +241,42 @@ async function markTaskDone(task) {
   } catch (e) {
     toast.error(e.message)
   }
+}
+
+// --- 工作台内拖拽排序 ---
+function onFlowDragStart(task, idx, e) {
+  flowDrag.value = { taskId: task.id, from: idx }
+  e.dataTransfer.effectAllowed = 'move'
+}
+function onFlowDragOver(task, idx) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.over = idx
+  }
+}
+function onFlowDragLeave(task) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.over = -1
+  }
+}
+async function onFlowDrop(task, targetIdx) {
+  const { taskId, from } = flowDrag.value
+  flowDrag.value = {}
+  if (taskId !== task.id || from === targetIdx) return
+  const wbTask = workbenchTasks.value.find(t => t.id === task.id)
+  if (!wbTask) return
+  const list = [...wbTask.steps]
+  const [moved] = list.splice(from, 1)
+  list.splice(targetIdx, 0, moved)
+  const reordered = list.map((s, i) => ({ ...s, order: i }))
+  wbTask.steps = reordered
+  try {
+    await put('/steps/reorder/batch', { items: reordered.map(s => ({ id: s.id, order: s.order })) })
+  } catch (e) {
+    toast.error('排序保存失败')
+  }
+}
+function onFlowDragEnd(task) {
+  flowDrag.value = {}
 }
 
 onMounted(load)
@@ -253,15 +301,16 @@ onMounted(load)
   align-items: start;
 }
 
-/* --- Lane --- */
+/* --- Lane (整个任务列是一个卡片) --- */
 .lane {
-  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding: 0;
+  overflow: hidden;
+  display: flex; flex-direction: column;
 }
 
-/* Lane header card */
 .lane-header {
-  padding: var(--sp-3) var(--sp-3);
-  border-top: 3px solid var(--c-primary);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--c-border);
 }
 .lane-title-row {
   display: flex; align-items: center; gap: var(--sp-2);
@@ -288,7 +337,6 @@ onMounted(load)
   line-height: var(--lh-relaxed);
   word-break: break-all;
 }
-.lane-bg-label { word-break: break-all; }
 .lane-bg-desc {
   background: var(--c-bg);
   color: var(--c-text-2);
@@ -297,16 +345,16 @@ onMounted(load)
 /* --- Flow --- */
 .lane-flow {
   display: flex; flex-direction: column;
-  align-items: stretch;
+  padding: var(--sp-3) var(--sp-4);
+  flex: 1;
 }
 .lane-no-steps {
   text-align: center; padding: var(--sp-6) 0;
   color: var(--c-text-3); font-size: var(--fs-sm);
 }
 
-/* Connector line */
 .flow-connector {
-  width: 2px; height: 20px;
+  width: 2px; height: 18px;
   background: var(--c-border-2);
   margin-left: 18px;
   transition: background var(--t-fast);
@@ -316,9 +364,9 @@ onMounted(load)
 /* Node */
 .flow-node {
   display: flex; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) var(--sp-2);
   border-radius: var(--radius-md);
-  border: 1px solid var(--c-border);
+  border: 1.5px solid var(--c-border);
   background: var(--c-surface);
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-smooth);
@@ -326,7 +374,6 @@ onMounted(load)
 }
 .flow-node:hover {
   border-color: var(--c-primary);
-  box-shadow: var(--shadow-sm);
 }
 
 .flow-node.node-start { border-left: 3px solid var(--c-green); }
@@ -334,12 +381,17 @@ onMounted(load)
 .flow-node.node-branch{ border-left: 3px solid var(--c-orange); }
 .flow-node.node-step  { border-left: 3px solid var(--c-blue); }
 
+/* 已完成步骤 — 暗色主题下也能看清 */
 .flow-node.node-done {
-  opacity: 0.55;
+  opacity: 0.7;
   background: var(--c-green-soft);
+  border-color: var(--c-green);
 }
 .flow-node.node-done .node-icon { color: var(--c-green); }
-.flow-node.node-done .node-title { text-decoration: line-through; }
+.flow-node.node-done .node-title {
+  text-decoration: line-through;
+  color: var(--c-text-3);
+}
 
 .flow-node.node-active {
   border-color: var(--c-primary);
@@ -347,16 +399,19 @@ onMounted(load)
   animation: pulse 2s ease-in-out infinite;
 }
 
+.node-drag-handle {
+  color: var(--c-text-3); font-size: 15px;
+  cursor: grab; line-height: 1; flex-shrink: 0; user-select: none;
+}
+.node-drag-handle:active { cursor: grabbing; }
 .node-icon {
-  font-size: 14px; width: 20px; text-align: center;
-  flex-shrink: 0;
-  color: var(--c-text-2);
+  font-size: 13px; width: 18px; text-align: center;
+  flex-shrink: 0; color: var(--c-text-2);
 }
 .node-title { flex: 1; font-size: var(--fs-sm); font-weight: var(--fw-medium); }
 .node-type {
   font-size: var(--fs-xs); padding: 1px 5px;
-  border-radius: var(--radius-full);
-  flex-shrink: 0;
+  border-radius: var(--radius-full); flex-shrink: 0;
 }
 .node-done-btn {
   width: 22px; height: 22px;
@@ -377,15 +432,12 @@ onMounted(load)
 /* Lane actions */
 .lane-actions {
   display: flex; flex-direction: column; gap: var(--sp-2);
-  padding: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--c-border);
+  background: var(--c-bg);
 }
-.lane-quick-add {
-  display: flex; gap: var(--sp-1);
-}
-.input-sm {
-  height: 30px; font-size: var(--fs-sm);
-  padding: 0 var(--sp-2);
-}
+.lane-quick-add { display: flex; gap: var(--sp-1); }
+.input-sm { height: 30px; font-size: var(--fs-sm); padding: 0 var(--sp-2); flex: 1; }
 .lane-done-label {
   text-align: center; font-size: var(--fs-sm);
   color: var(--c-green); font-weight: var(--fw-medium);
