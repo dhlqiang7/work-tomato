@@ -59,13 +59,39 @@
                   @dragleave="onFlowDragLeave(task)"
                   @drop.prevent="onFlowDrop(task, si)"
                   @dragend="onFlowDragEnd(task)"
-                  @click="toggleStep(task, step, si)"
                 >
                   <span class="node-drag-handle" title="拖拽排序">⠿</span>
                   <span class="node-icon">{{ stepIcon(step) }}</span>
-                  <span class="node-title">{{ step.title }}</span>
+                  <!-- 内联编辑 vs 显示 -->
+                  <input
+                    v-if="step._editing"
+                    v-model="step._editTitle"
+                    class="node-edit-input"
+                    @click.stop
+                    @keyup.enter="saveStepTitle(task, step)"
+                    @keyup.escape="step._editing = false"
+                    @blur="saveStepTitle(task, step)"
+                  />
+                  <span v-else class="node-title" @dblclick.stop="startEditStep(step)">{{ step.title }}</span>
                   <span class="node-type" :class="'badge-' + stepTypeColor(step.type)">{{ stepTypeLabel(step.type) }}</span>
-                  <button class="node-done-btn" v-if="step.status !== 'done'" @click.stop="markStepDone(task, step)" title="标记完成">✓</button>
+                  <!-- 完成/回退按钮 -->
+                  <button
+                    v-if="step.status !== 'done'"
+                    class="node-done-btn"
+                    @click.stop="markStepDone(task, step)"
+                    title="标记完成"
+                  >✓</button>
+                  <button
+                    v-else
+                    class="node-undo-btn"
+                    @click.stop="markStepUndone(task, step)"
+                    title="回退未完成"
+                  >↩</button>
+                  <!-- 编辑 & 删除按钮 -->
+                  <div class="node-hover-actions">
+                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="startEditStep(step)" title="编辑">✏️</button>
+                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="deleteFlowStep(task, step)" title="删除">🗑️</button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -122,7 +148,7 @@ import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
-const { get, post, put } = useApi()
+const { get, post, put, del } = useApi()
 const toast = useToast()
 const confirmDialog = ref(null)
 const loading = ref(true)
@@ -162,7 +188,7 @@ async function load() {
     const withSteps = await Promise.all(wbTasks.map(async (t) => {
       try {
         const steps = await get('/steps?taskId=' + t.id)
-        return { ...t, steps, _newStepTitle: '', _newStepType: 'step' }
+        return { ...t, steps: steps.map(s => ({ ...s, _editing: false, _editTitle: '' })), _newStepTitle: '', _newStepType: 'step' }
       } catch {
         return { ...t, steps: [], _newStepTitle: '', _newStepType: 'step' }
       }
@@ -200,20 +226,56 @@ async function removeFromWorkbench(task) {
   }
 }
 
-async function toggleStep(task, step, idx) {
-  if (step.status === 'done') return
-  await markStepDone(task, step)
-}
-
 async function markStepDone(task, step) {
   try {
     await put('/steps/' + step.id, { status: 'done' })
-    const wbTask = workbenchTasks.value.find(t => t.id === task.id)
-    if (wbTask) {
-      wbTask.steps = await get('/steps?taskId=' + task.id)
-    }
+    await refreshTaskSteps(task)
   } catch (e) {
     toast.error(e.message)
+  }
+}
+
+async function markStepUndone(task, step) {
+  try {
+    await put('/steps/' + step.id, { status: 'pending' })
+    await refreshTaskSteps(task)
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+function startEditStep(step) {
+  step._editing = true
+  step._editTitle = step.title
+}
+
+async function saveStepTitle(task, step) {
+  const title = (step._editTitle || '').trim()
+  step._editing = false
+  if (!title || title === step.title) return
+  try {
+    await put('/steps/' + step.id, { title })
+    await refreshTaskSteps(task)
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function deleteFlowStep(task, step) {
+  if (!await confirmDialog.value?.show(`删除步骤「${step.title}」？`)) return
+  try {
+    await del('/steps/' + step.id)
+    await refreshTaskSteps(task)
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function refreshTaskSteps(task) {
+  const wbTask = workbenchTasks.value.find(t => t.id === task.id)
+  if (wbTask) {
+    const steps = await get('/steps?taskId=' + task.id)
+    wbTask.steps = steps.map(s => ({ ...s, _editing: false, _editTitle: '' }))
   }
 }
 
@@ -267,7 +329,7 @@ async function onFlowDrop(task, targetIdx) {
   const list = [...wbTask.steps]
   const [moved] = list.splice(from, 1)
   list.splice(targetIdx, 0, moved)
-  const reordered = list.map((s, i) => ({ ...s, order: i }))
+  const reordered = list.map((s, i) => ({ ...s, order: i, _editing: false, _editTitle: '' }))
   wbTask.steps = reordered
   try {
     await put('/steps/reorder/batch', { items: reordered.map(s => ({ id: s.id, order: s.order })) })
@@ -413,7 +475,7 @@ onMounted(load)
   font-size: var(--fs-xs); padding: 1px 5px;
   border-radius: var(--radius-full); flex-shrink: 0;
 }
-.node-done-btn {
+.node-done-btn, .node-undo-btn {
   width: 22px; height: 22px;
   border: 2px solid var(--c-green);
   border-radius: 50%;
@@ -422,12 +484,41 @@ onMounted(load)
   font-size: 12px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  opacity: 0;
   transition: all var(--t-fast);
   flex-shrink: 0;
 }
-.flow-node:hover .node-done-btn { opacity: 1; }
+.node-undo-btn {
+  border-color: var(--c-orange);
+  color: var(--c-orange);
+  font-size: 13px;
+}
+.flow-node:hover .node-done-btn, .flow-node:hover .node-undo-btn { opacity: 1; }
 .node-done-btn:hover { background: var(--c-green); color: #fff; }
+.node-undo-btn:hover { background: var(--c-orange); color: #fff; }
+
+.node-hover-actions {
+  display: flex; gap: 1px;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.flow-node:hover .node-hover-actions { opacity: 1; }
+.node-action-btn {
+  width: 24px; height: 24px;
+  padding: 0; font-size: 12px;
+}
+.node-edit-input {
+  flex: 1;
+  border: 1px solid var(--c-primary);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  padding: 0 var(--sp-1);
+  height: 24px;
+  outline: none;
+  font-family: var(--f-body);
+  min-width: 0;
+}
 
 /* Lane actions */
 .lane-actions {
