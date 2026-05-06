@@ -33,6 +33,7 @@ const groups = [
     { key: '3', desc: '专注' },
     { key: '4', desc: '统计' },
     { key: '5', desc: '回顾' },
+    { key: '6', desc: '工作台' },
   ]},
   { title: '任务', items: [
     { key: 'N', desc: '新建任务' },

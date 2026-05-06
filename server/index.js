@@ -8,6 +8,7 @@ import taskRoutes from './routes/tasks.js'
 import projectRoutes from './routes/projects.js'
 import pomodoroRoutes from './routes/pomodoros.js'
 import statsRoutes from './routes/stats.js'
+import stepRoutes from './routes/steps.js'
 import { initDefaultProject } from './store/base.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -37,6 +38,7 @@ export async function startServer({ silent = false } = {}) {
   app.use('/api/projects', projectRoutes)
   app.use('/api/pomodoros', pomodoroRoutes)
   app.use('/api/stats', statsRoutes)
+app.use('/api/steps', stepRoutes)
 
   const isDev = process.argv.includes('--dev')
 

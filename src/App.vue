@@ -9,6 +9,7 @@
         <PomodoroView v-else-if="currentView === 'pomodoro'" :target-task="pomodoroTarget" />
         <StatsView v-else-if="currentView === 'stats'" @go-review="changeView('review')" />
         <ReviewView v-else-if="currentView === 'review'" />
+        <WorkbenchView v-else-if="currentView === 'workbench'" />
       </main>
     </div>
     <Toast />
@@ -25,6 +26,7 @@ import ProjectView from './views/ProjectView.vue'
 import PomodoroView from './views/PomodoroView.vue'
 import StatsView from './views/StatsView.vue'
 import ReviewView from './views/ReviewView.vue'
+import WorkbenchView from './views/WorkbenchView.vue'
 import Toast from './components/common/Toast.vue'
 import ShortcutHelp from './components/common/ShortcutHelp.vue'
 
@@ -33,7 +35,7 @@ const isDark = ref(false)
 const pomodoroTarget = ref(null)
 const showShortcutHelp = ref(false)
 
-const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review' }
+const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review', '6': 'workbench' }
 
 function toggleTheme() {
   isDark.value = !isDark.value
@@ -76,7 +78,7 @@ function onKeydown(e) {
   // Ctrl/Cmd 组合键不处理
   if (e.ctrlKey || e.metaKey) return
 
-  // 数字键 1-5 切换视图
+  // 数字键 1-6 切换视图
   if (viewMap[key]) {
     e.preventDefault()
     changeView(viewMap[key])

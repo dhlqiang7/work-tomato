@@ -100,6 +100,8 @@ router.post('/', async (req, res) => {
       totalFocusMinutes: 0,
       completedResult: '',
       completedAt: null,
+      background: (req.body.background || '').slice(0, 500),
+      inWorkbench: false,
       createdAt: now,
       updatedAt: now
     }
@@ -113,7 +115,7 @@ router.post('/', async (req, res) => {
 // 更新任务（白名单过滤字段）
 const TASK_UPDATE_FIELDS = ['title', 'description', 'projectId', 'priority', 'status',
   'tags', 'relatedPeople', 'deadline', 'reminderDismissed', 'reminderSnoozedUntil',
-  'estimatedPomodoros', 'completedPomodoros', 'totalFocusMinutes']
+  'estimatedPomodoros', 'completedPomodoros', 'totalFocusMinutes', 'background', 'inWorkbench']
 
 router.put('/:id', async (req, res) => {
   try {

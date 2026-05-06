@@ -21,6 +21,10 @@
             <option value="active">进行中</option>
             <option value="done">已完成</option>
           </select>
+          <label class="filter-check">
+            <input type="checkbox" v-model="filter.onlyUndone" @change="load" />
+            <span>仅未完成</span>
+          </label>
           <select v-model="filter.projectId" class="select select-sm" @change="load">
             <option value="">全部项目</option>
             <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option>
@@ -89,6 +93,7 @@
             </div>
             <div class="task-actions" @click.stop>
               <button class="btn btn-sm btn-ghost" @click="startPomodoro(task)" title="开始专注">🍅</button>
+              <button class="btn btn-sm btn-ghost" @click="openSteps(task)" title="步骤分解">📋</button>
               <button class="btn btn-sm btn-ghost" @click="confirmDelete(task)" title="删除">🗑️</button>
             </div>
           </div>
@@ -112,6 +117,10 @@
         <div class="form-group">
           <label class="form-label">描述</label>
           <textarea v-model="form.description" class="textarea" placeholder="补充说明（可选）"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">工作背景</label>
+          <textarea v-model="form.background" class="textarea" placeholder="如：使用 Claude Code / IDEA 开发，当前在等待 CI 构建..." style="min-height:50px"></textarea>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -169,6 +178,36 @@
       </template>
     </Modal>
 
+    <!-- 步骤管理弹窗 -->
+    <Modal v-model="showStepsModal" :title="'步骤管理 - ' + (stepsTask?.title || '')" width="560px">
+      <div class="steps-list">
+        <div v-if="stepsList.length === 0" class="steps-empty">暂无步骤，点击下方按钮添加</div>
+        <div v-for="(s, i) in stepsList" :key="s.id" class="step-item" :class="'step-' + s.type">
+          <span class="step-type-badge" :class="'badge-' + stepTypeColor(s.type)">{{ stepTypeLabel(s.type) }}</span>
+          <span class="step-title" :class="{ 'step-done': s.status === 'done' }">{{ s.title }}</span>
+          <div class="step-item-actions">
+            <button class="btn btn-sm btn-ghost" @click="toggleStepDone(s)" :title="s.status === 'done' ? '取消完成' : '标记完成'">
+              {{ s.status === 'done' ? '↩' : '✓' }}
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="deleteStep(s.id)" title="删除">🗑️</button>
+          </div>
+        </div>
+      </div>
+      <div class="step-add">
+        <input v-model="newStepTitle" class="input" placeholder="新步骤标题" @keyup.enter="addStep" style="flex:1" />
+        <select v-model="newStepType" class="select select-sm" style="width:auto">
+          <option value="start">开始</option>
+          <option value="step">步骤</option>
+          <option value="branch">分支</option>
+          <option value="end">结束</option>
+        </select>
+        <button class="btn btn-primary btn-sm" @click="addStep">添加</button>
+      </div>
+      <template #footer>
+        <button class="btn" @click="showStepsModal = false">关闭</button>
+      </template>
+    </Modal>
+
     <ConfirmDialog ref="confirmDialog" />
   </div>
 </template>
@@ -196,7 +235,7 @@ const completeResult = ref('')
 const tagsInput = ref('')
 const peopleInput = ref('')
 
-const filter = reactive({ status: '', projectId: '', priority: '', keyword: '' })
+const filter = reactive({ status: '', projectId: '', priority: '', keyword: '', onlyUndone: false })
 let searchTimer = null
 function onSearch() {
   clearTimeout(searchTimer)
@@ -205,7 +244,8 @@ function onSearch() {
 
 const defaultForm = {
   title: '', description: '', projectId: 'default',
-  priority: 'P2', deadline: '', estimatedPomodoros: 0, tags: [], relatedPeople: []
+  priority: 'P2', deadline: '', estimatedPomodoros: 0,
+  tags: [], relatedPeople: [], background: ''
 }
 const form = reactive({ ...defaultForm })
 
@@ -226,7 +266,11 @@ async function load() {
     ])
     projects.value = projectList
     const projectMap = Object.fromEntries(projectList.map(p => [p.id, p.title]))
-    tasks.value = taskList.map(t => ({ ...t, projectTitle: projectMap[t.projectId] || '日常工作' }))
+    let result = taskList.map(t => ({ ...t, projectTitle: projectMap[t.projectId] || '日常工作' }))
+    if (filter.onlyUndone) {
+      result = result.filter(t => t.status !== 'done')
+    }
+    tasks.value = result
   } catch (e) {
     toast.error(e.message)
   } finally {
@@ -252,6 +296,7 @@ function openEdit(task) {
     priority: task.priority || 'P2',
     deadline: task.deadline ? task.deadline.slice(0, 16) : '',
     estimatedPomodoros: task.estimatedPomodoros || 0,
+    background: task.background || '',
   })
   tagsInput.value = (task.tags || []).join(', ')
   peopleInput.value = (task.relatedPeople || []).join(', ')
@@ -318,6 +363,62 @@ async function confirmDelete(task) {
 
 function startPomodoro(task) {
   emit('startPomodoro', task)
+}
+
+// --- 步骤管理 ---
+const showStepsModal = ref(false)
+const stepsTask = ref(null)
+const stepsList = ref([])
+const newStepTitle = ref('')
+const newStepType = ref('step')
+
+const stepTypeLabels = { start: '开始', step: '步骤', branch: '分支', end: '结束' }
+function stepTypeLabel(type) { return stepTypeLabels[type] || '步骤' }
+function stepTypeColor(type) {
+  return { start: 'green', step: 'blue', branch: 'orange', end: 'primary' }[type] || 'blue'
+}
+
+async function openSteps(task) {
+  stepsTask.value = task
+  showStepsModal.value = true
+  newStepTitle.value = ''
+  newStepType.value = 'step'
+  try {
+    stepsList.value = await get('/steps?taskId=' + task.id)
+  } catch (e) {
+    toast.error('加载步骤失败')
+    stepsList.value = []
+  }
+}
+
+async function addStep() {
+  if (!newStepTitle.value.trim()) return
+  try {
+    await post('/steps', { taskId: stepsTask.value.id, title: newStepTitle.value.trim(), type: newStepType.value })
+    newStepTitle.value = ''
+    stepsList.value = await get('/steps?taskId=' + stepsTask.value.id)
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function toggleStepDone(step) {
+  const newStatus = step.status === 'done' ? 'pending' : 'done'
+  try {
+    await put('/steps/' + step.id, { status: newStatus })
+    stepsList.value = await get('/steps?taskId=' + stepsTask.value.id)
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function deleteStep(id) {
+  try {
+    await del('/steps/' + id)
+    stepsList.value = await get('/steps?taskId=' + stepsTask.value.id)
+  } catch (e) {
+    toast.error(e.message)
+  }
 }
 
 function isOverdue(task) {
@@ -496,4 +597,50 @@ onUnmounted(() => clearTimeout(searchTimer))
 .task-list-enter-from { opacity: 0; transform: translateY(-8px); }
 .task-list-leave-to { opacity: 0; transform: translateX(20px); }
 .task-list-move { transition: transform 0.3s var(--ease-smooth); }
+
+/* Filter checkbox */
+.filter-check {
+  display: flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--fs-sm); color: var(--c-text-2);
+  cursor: pointer; white-space: nowrap; user-select: none;
+}
+.filter-check input[type="checkbox"] {
+  accent-color: var(--c-primary);
+}
+
+/* Step management */
+.steps-list {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  max-height: 320px; overflow-y: auto;
+}
+.steps-empty {
+  text-align: center; color: var(--c-text-3);
+  padding: var(--sp-6) 0; font-size: var(--fs-sm);
+}
+.step-item {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+}
+.step-item.step-start { border-left: 3px solid var(--c-green); }
+.step-item.step-end { border-left: 3px solid var(--c-primary); }
+.step-item.step-branch { border-left: 3px solid var(--c-orange); }
+.step-item.step-step { border-left: 3px solid var(--c-blue); }
+.step-type-badge {
+  font-size: var(--fs-xs); padding: 1px 6px;
+  border-radius: var(--radius-full); flex-shrink: 0;
+}
+.step-title { flex: 1; font-size: var(--fs-base); }
+.step-title.step-done { text-decoration: line-through; color: var(--c-text-3); }
+.step-item-actions {
+  display: flex; gap: 2px; opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.step-item:hover .step-item-actions { opacity: 1; }
+.step-add {
+  display: flex; gap: var(--sp-2); align-items: center;
+}
 </style>
