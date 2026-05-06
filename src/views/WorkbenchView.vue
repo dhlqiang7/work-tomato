@@ -30,6 +30,7 @@
             <div class="lane-title-row">
               <span class="lane-priority" :class="'priority-' + task.priority">{{ task.priority }}</span>
               <span class="lane-title">{{ task.title }}</span>
+              <button class="btn btn-sm btn-ghost" @click="toggleTaskCollapse(task)" :title="task._collapsed ? '展开已完成' : '折叠已完成'">{{ task._collapsed ? '⊞' : '⊟' }}</button>
               <button class="btn btn-sm btn-ghost" @click="removeFromWorkbench(task)" title="移出工作台">✕</button>
             </div>
             <div v-if="task.background" class="lane-background">
@@ -234,14 +235,16 @@ const flowDrag = ref({})
 const collapseDone = ref(false)
 
 function onCollapseAll() {
-  // 清除所有任务的独立展开状态
   for (const t of workbenchTasks.value) {
-    delete t._expandDone
+    t._collapsed = collapseDone.value
   }
 }
 function expandTask(taskId) {
   const t = workbenchTasks.value.find(t => t.id === taskId)
-  if (t) t._expandDone = true
+  if (t) t._collapsed = false
+}
+function toggleTaskCollapse(task) {
+  task._collapsed = !task._collapsed
 }
 
 function isDraggable(step) {
@@ -260,7 +263,7 @@ function isActiveStep(task, idx) {
 function flowBlocks(task) {
   const steps = task.steps || []
   if (steps.length === 0) return []
-  const collapsed = collapseDone.value && !task._expandDone
+  const collapsed = task._collapsed
   const blocks = []
 
   let i = 0
@@ -392,9 +395,9 @@ async function load() {
     const withSteps = await Promise.all(wbTasks.map(async (t) => {
       try {
         const steps = await get('/steps?taskId=' + t.id)
-        return { ...t, projectTitle: projectMap[t.projectId] || '日常工作', steps: steps.map(s => ({ ...s, _editing: false, _editTitle: '' })), _newStepTitle: '', _newStepType: 'step' }
+        return { ...t, projectTitle: projectMap[t.projectId] || '日常工作', steps: steps.map(s => ({ ...s, _editing: false, _editTitle: '' })), _newStepTitle: '', _newStepType: 'step', _collapsed: false }
       } catch {
-        return { ...t, projectTitle: projectMap[t.projectId] || '日常工作', steps: [], _newStepTitle: '', _newStepType: 'step' }
+        return { ...t, projectTitle: projectMap[t.projectId] || '日常工作', steps: [], _newStepTitle: '', _newStepType: 'step', _collapsed: false }
       }
     }))
     workbenchTasks.value = withSteps
