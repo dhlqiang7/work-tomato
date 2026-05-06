@@ -8,7 +8,8 @@
     <div v-if="loading" class="loading-state">加载中...</div>
     <div v-else-if="projects.length" class="project-grid">
       <div v-for="(p, idx) in projects" :key="p.id" class="project-card card"
-        :style="{ animationDelay: idx * 60 + 'ms', '--project-color': p.color || '#D94F3B' }">
+        :style="{ animationDelay: idx * 60 + 'ms', '--project-color': p.color || '#D94F3B' }"
+        @contextmenu.prevent="onProjectContextMenu(p, $event)">
         <div class="project-color-bar" :style="{ background: p.color || '#D94F3B' }"></div>
         <div class="project-header">
           <h3 class="project-name">{{ p.title }}</h3>
@@ -63,6 +64,7 @@
       </template>
     </Modal>
     <ConfirmDialog ref="confirmDialog" />
+    <ContextMenu ref="ctxMenu" />
   </div>
 </template>
 
@@ -72,10 +74,12 @@ import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
 const confirmDialog = ref(null)
+const ctxMenu = ref(null)
 const loading = ref(true)
 
 const projects = ref([])
@@ -134,6 +138,19 @@ async function confirmDelete(p) {
     toast.success('已删除')
     await load()
   } catch (e) { toast.error(e.message) }
+}
+
+async function onProjectContextMenu(p, event) {
+  const items = [
+    { label: '编辑项目', icon: '✏️', action: 'edit' },
+  ]
+  if (p.id !== 'default') {
+    items.push({ label: '删除项目', icon: '🗑️', action: 'delete', danger: true })
+  }
+  const action = await ctxMenu.value?.show(items, event)
+  if (!action) return
+  if (action === 'edit') openEdit(p)
+  else if (action === 'delete') await confirmDelete(p)
 }
 
 onMounted(load)

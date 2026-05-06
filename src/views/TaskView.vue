@@ -52,7 +52,7 @@
           :class="{ 'task-done': task.status === 'done', 'task-overdue': isOverdue(task) }"
           :style="{ animationDelay: idx * 40 + 'ms' }"
         >
-          <div class="task-main" @click="openEdit(task)" :style="task.status === 'done' ? 'cursor:default' : ''">
+          <div class="task-main" @click="openEdit(task)" @contextmenu.prevent="onTaskContextMenu(task, $event)" :style="task.status === 'done' ? 'cursor:default' : ''">
             <div class="task-left">
               <button
                 class="task-check"
@@ -218,6 +218,7 @@
     </Modal>
 
     <ConfirmDialog ref="confirmDialog" />
+    <ContextMenu ref="ctxMenu" />
   </div>
 </template>
 
@@ -227,12 +228,14 @@ import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
 const loading = ref(true)
 const emit = defineEmits(['startPomodoro'])
 const confirmDialog = ref(null)
+const ctxMenu = ref(null)
 
 const tasks = ref([])
 const projects = ref([])
@@ -483,6 +486,24 @@ function isOverdue(task) {
 function formatDate(d) {
   const date = new Date(d)
   return `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
+}
+
+async function onTaskContextMenu(task, event) {
+  const items = []
+  if (task.status !== 'done') {
+    items.push({ label: '编辑任务', icon: '✏️', action: 'edit' })
+    items.push({ label: '开始专注', icon: '🍅', action: 'pomodoro' })
+    items.push({ label: '完成', icon: '✓', action: 'complete' })
+    items.push({ label: '步骤管理', icon: '📋', action: 'steps' })
+  }
+  items.push({ label: '删除', icon: '🗑️', action: 'delete', danger: true })
+  const action = await ctxMenu.value?.show(items, event)
+  if (!action) return
+  if (action === 'edit') openEdit(task)
+  else if (action === 'pomodoro') startPomodoro(task)
+  else if (action === 'complete') toggleDone(task)
+  else if (action === 'steps') openSteps(task)
+  else if (action === 'delete') await confirmDelete(task)
 }
 
 onMounted(load)

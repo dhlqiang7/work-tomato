@@ -20,7 +20,7 @@
           class="lane card card-elevated"
         >
           <!-- 任务头部 -->
-          <div class="lane-header">
+          <div class="lane-header" @contextmenu.prevent="onTaskContextMenu(task, $event)">
             <div class="lane-title-row">
               <span class="lane-priority" :class="'priority-' + task.priority">{{ task.priority }}</span>
               <span class="lane-title">{{ task.title }}</span>
@@ -31,6 +31,26 @@
             </div>
             <div v-else-if="task.description" class="lane-background lane-bg-desc">
               {{ task.description }}
+            </div>
+          </div>
+
+          <!-- 任务详情区 -->
+          <div class="lane-info">
+            <div v-if="task.deadline" class="lane-info-item">
+              <span class="li-label">截止</span>
+              <span class="li-value" :class="{ overdue: new Date(task.deadline) < new Date() }">{{ fmtDate(task.deadline) }}</span>
+            </div>
+            <div v-if="task.projectTitle" class="lane-info-item">
+              <span class="li-label">项目</span>
+              <span class="li-value">{{ task.projectTitle }}</span>
+            </div>
+            <div v-if="task.tags?.length" class="lane-info-item">
+              <span class="li-label">标签</span>
+              <span class="li-tags"><span v-for="t in task.tags" :key="t" class="badge badge-blue">{{ t }}</span></span>
+            </div>
+            <div v-if="task.relatedPeople?.length" class="lane-info-item">
+              <span class="li-label">人员</span>
+              <span class="li-tags"><span v-for="p in task.relatedPeople" :key="p" class="badge badge-orange">{{ p }}</span></span>
             </div>
           </div>
 
@@ -71,6 +91,7 @@
                     @drag-leave-node="onNodeDragLeave"
                     @drop-node="onNodeDrop"
                     @drag-end="onFlowDragEnd"
+                    @contextmenu="onStepContextMenu"
                   />
                 </template>
 
@@ -101,6 +122,7 @@
                     @drag-leave-node="onNodeDragLeave"
                     @drop-node="onNodeDrop"
                     @drag-end="onFlowDragEnd"
+                    @contextmenu="onStepContextMenu"
                   />
                 </div>
               </template>
@@ -145,21 +167,44 @@
       </template>
     </Modal>
 
+    <!-- 编辑任务弹窗 -->
+    <Modal v-model="showEditModal" title="编辑任务">
+      <div class="form-group">
+        <label class="form-label">标题</label>
+        <input v-model="editForm.title" class="input" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">描述</label>
+        <textarea v-model="editForm.description" class="textarea" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">工作背景</label>
+        <textarea v-model="editForm.background" class="textarea" style="min-height:50px" placeholder="如：使用 Claude Code 开发"></textarea>
+      </div>
+      <template #footer>
+        <button class="btn" @click="showEditModal = false">取消</button>
+        <button class="btn btn-primary" @click="saveEditTask">保存</button>
+      </template>
+    </Modal>
+
     <ConfirmDialog ref="confirmDialog" />
+    <ContextMenu ref="ctxMenu" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import ContextMenu from '@/components/common/ContextMenu.vue'
 import StepNode from '@/components/common/StepNode.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
 const confirmDialog = ref(null)
+const ctxMenu = ref(null)
 const loading = ref(true)
 
 const workbenchTasks = ref([])
@@ -281,15 +326,16 @@ async function onNodeDrop(task, targetIdx) {
 async function load() {
   loading.value = true
   try {
-    const tasks = await get('/tasks')
+    const [tasks, projects] = await Promise.all([get('/tasks'), get('/projects')])
     allTasks.value = tasks
+    const projectMap = Object.fromEntries(projects.map(p => [p.id, p.title]))
     const wbTasks = tasks.filter(t => t.inWorkbench)
     const withSteps = await Promise.all(wbTasks.map(async (t) => {
       try {
         const steps = await get('/steps?taskId=' + t.id)
-        return { ...t, steps: steps.map(s => ({ ...s, _editing: false, _editTitle: '' })), _newStepTitle: '', _newStepType: 'step' }
+        return { ...t, projectTitle: projectMap[t.projectId] || '日常工作', steps: steps.map(s => ({ ...s, _editing: false, _editTitle: '' })), _newStepTitle: '', _newStepType: 'step' }
       } catch {
-        return { ...t, steps: [], _newStepTitle: '', _newStepType: 'step' }
+        return { ...t, projectTitle: projectMap[t.projectId] || '日常工作', steps: [], _newStepTitle: '', _newStepType: 'step' }
       }
     }))
     workbenchTasks.value = withSteps
@@ -446,6 +492,66 @@ async function onFlowDragEnd(task) {
   flowDrag.value = {}
 }
 
+// --- 右键菜单 ---
+async function onStepContextMenu(task, step, event) {
+  const action = await ctxMenu.value?.show([
+    step.status !== 'done'
+      ? { label: '标记完成', icon: '✓', action: 'done' }
+      : { label: '回退未完成', icon: '↩', action: 'undone' },
+    { label: '编辑名称', icon: '✏️', action: 'edit' },
+    { label: '删除步骤', icon: '🗑️', action: 'delete', danger: true },
+  ], event)
+  if (!action) return
+  if (action === 'done') await markStepDone(task, step)
+  else if (action === 'undone') await markStepUndone(task, step)
+  else if (action === 'edit') startEditStep(step)
+  else if (action === 'delete') await deleteFlowStep(task, step)
+}
+
+async function onTaskContextMenu(task, event) {
+  const action = await ctxMenu.value?.show([
+    { label: '编辑任务', icon: '✏️', action: 'edit' },
+    { label: '开始专注', icon: '🍅', action: 'pomodoro' },
+    { label: '移出工作台', icon: '✕', action: 'remove' },
+  ], event)
+  if (!action) return
+  if (action === 'edit') openTaskEdit(task)
+  else if (action === 'pomodoro') { /* emit to parent */ }
+  else if (action === 'remove') await removeFromWorkbench(task)
+}
+
+// 编辑任务
+const showEditModal = ref(false)
+const editingTaskId = ref('')
+const editForm = reactive({ title: '', description: '', background: '' })
+
+function openTaskEdit(task) {
+  editingTaskId.value = task.id
+  editForm.title = task.title
+  editForm.description = task.description || ''
+  editForm.background = task.background || ''
+  showEditModal.value = true
+}
+
+async function saveEditTask() {
+  try {
+    await put('/tasks/' + editingTaskId.value, {
+      title: editForm.title.trim() || undefined,
+      description: editForm.description,
+      background: editForm.background
+    })
+    showEditModal.value = false
+    await load()
+    toast.success('任务已更新')
+  } catch (e) { toast.error(e.message) }
+}
+
+function fmtDate(d) {
+  if (!d) return ''
+  const date = new Date(d)
+  return `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
+}
+
 onMounted(load)
 </script>
 
@@ -506,6 +612,27 @@ onMounted(load)
   background: var(--c-bg);
   color: var(--c-text-2);
 }
+
+/* --- Lane info --- */
+.lane-info {
+  padding: var(--sp-2) var(--sp-4);
+  display: flex; flex-direction: column; gap: 4px;
+  border-bottom: 1px solid var(--c-border);
+}
+.lane-info-item {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  font-size: var(--fs-xs);
+}
+.li-label {
+  color: var(--c-text-3);
+  flex-shrink: 0;
+  min-width: 28px;
+}
+.li-value {
+  color: var(--c-text-2);
+}
+.li-value.overdue { color: var(--c-primary); font-weight: var(--fw-semibold); }
+.li-tags { display: flex; gap: 3px; flex-wrap: wrap; }
 
 /* --- Flow --- */
 .lane-flow {

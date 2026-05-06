@@ -11,11 +11,11 @@
     @dragleave="emit('dragLeaveNode', task)"
     @drop.prevent="emit('dropNode', task, stepIdx)"
     @dragend="emit('dragEnd', task)"
+    @contextmenu.prevent="onContextMenu"
   >
     <div class="node-controls">
       <span v-if="isDraggable" class="node-drag-handle" title="拖拽排序">⠿</span>
       <span v-else class="node-drag-handle node-locked" title="固定位置">🔒</span>
-      <span class="node-icon">{{ icon }}</span>
       <span class="node-type" :class="'badge-' + typeColor">{{ typeLabel }}</span>
       <div class="node-spacer"></div>
       <div class="node-hover-actions">
@@ -58,7 +58,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'markDone', 'markUndone', 'edit', 'saveTitle', 'delete',
-  'dragStart', 'dragOverNode', 'dragLeaveNode', 'dropNode', 'dragEnd'
+  'dragStart', 'dragOverNode', 'dragLeaveNode', 'dropNode', 'dragEnd', 'contextmenu'
 ])
 
 const stepTypeLabels = { start: '开始', step: '步骤', branch: '分支', end: '结束' }
@@ -66,15 +66,16 @@ const typeLabel = computed(() => stepTypeLabels[props.step.type] || '步骤')
 const typeColor = computed(() => {
   return { start: 'green', step: 'blue', branch: 'orange', end: 'primary' }[props.step.type] || 'blue'
 })
-const icon = computed(() => {
-  return { start: '▶', step: '●', branch: '◇', end: '■' }[props.step.type] || '●'
-})
 const isDraggable = computed(() => props.step.type !== 'start' && props.step.type !== 'end')
 
 function onDS(e) {
   if (!isDraggable.value) { e.preventDefault(); return }
   e.dataTransfer.effectAllowed = 'move'
   emit('dragStart', props.task, props.stepIdx, e)
+}
+
+function onContextMenu(e) {
+  emit('contextmenu', props.task, props.step, e)
 }
 </script>
 
@@ -106,7 +107,6 @@ function onDS(e) {
   background: var(--c-green-soft);
   border-color: var(--c-green);
 }
-.flow-node.node-done .node-icon { color: var(--c-green); }
 .flow-node.node-done .node-title {
   text-decoration: line-through;
   color: var(--c-text-3);
@@ -130,10 +130,6 @@ function onDS(e) {
 .node-drag-handle:active { cursor: grabbing; }
 .node-drag-handle.node-locked { cursor: default; font-size: 11px; }
 
-.node-icon {
-  font-size: 13px; width: 18px; text-align: center;
-  flex-shrink: 0; color: var(--c-text-2);
-}
 .node-type {
   font-size: var(--fs-xs); padding: 1px 5px;
   border-radius: var(--radius-full); flex-shrink: 0;
