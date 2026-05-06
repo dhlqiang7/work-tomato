@@ -655,7 +655,11 @@ onMounted(load)
   border-bottom: 1px solid var(--c-border);
 }
 .lane-title-row {
-  display: flex; align-items: center; gap: var(--sp-2);
+  display: flex; align-items: center; gap: var(--sp-1);
+}
+.lane-title-row .btn-sm {
+  width: 22px; height: 22px; padding: 0;
+  font-size: 12px; flex-shrink: 0;
 }
 .lane-priority {
   font-family: var(--f-mono); font-size: 11px;
