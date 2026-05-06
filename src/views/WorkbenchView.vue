@@ -30,7 +30,7 @@
             <div class="lane-title-row">
               <span class="lane-priority" :class="'priority-' + task.priority">{{ task.priority }}</span>
               <span class="lane-title">{{ task.title }}</span>
-              <button class="btn btn-sm btn-ghost" @click="toggleTaskCollapse(task)" :title="task._collapsed ? '展开已完成' : '折叠已完成'">{{ task._collapsed ? '⊞' : '⊟' }}</button>
+              <button class="btn btn-sm btn-ghost" @click="toggleTaskCollapse(task)" :title="task._collapsed ? '展开已完成' : '折叠已完成'">{{ task._collapsed ? '▸' : '▾' }}</button>
               <button class="btn btn-sm btn-ghost" @click="removeFromWorkbench(task)" title="移出工作台">✕</button>
             </div>
             <div v-if="task.background" class="lane-background">
@@ -86,7 +86,7 @@
                   class="flow-expand"
                   @click="expandTask(block.taskId)"
                 >
-                  <span class="expand-icon">›</span>
+                  <span class="expand-icon">▸</span>
                   <span>{{ block.count }} 步已完成</span>
                   <span class="expand-hint">点击展开</span>
                 </div>
