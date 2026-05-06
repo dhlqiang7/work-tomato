@@ -182,7 +182,19 @@
     <Modal v-model="showStepsModal" :title="'步骤管理 - ' + (stepsTask?.title || '')" width="560px">
       <div class="steps-list">
         <div v-if="stepsList.length === 0" class="steps-empty">暂无步骤，点击下方按钮添加</div>
-        <div v-for="(s, i) in stepsList" :key="s.id" class="step-item" :class="'step-' + s.type">
+        <div
+          v-for="(s, i) in stepsList"
+          :key="s.id"
+          class="step-item"
+          :class="['step-' + s.type, { 'drag-over': dragOverIdx === i }]"
+          draggable="true"
+          @dragstart="onDragStart(i, $event)"
+          @dragover.prevent="onDragOver(i)"
+          @dragleave="onDragLeave"
+          @drop.prevent="onDrop(i)"
+          @dragend="onDragEnd"
+        >
+          <span class="step-drag-handle" title="拖拽排序">⠿</span>
           <span class="step-type-badge" :class="'badge-' + stepTypeColor(s.type)">{{ stepTypeLabel(s.type) }}</span>
           <span class="step-title" :class="{ 'step-done': s.status === 'done' }">{{ s.title }}</span>
           <div class="step-item-actions">
@@ -371,6 +383,8 @@ const stepsTask = ref(null)
 const stepsList = ref([])
 const newStepTitle = ref('')
 const newStepType = ref('step')
+const dragIdx = ref(-1)
+const dragOverIdx = ref(-1)
 
 const stepTypeLabels = { start: '开始', step: '步骤', branch: '分支', end: '结束' }
 function stepTypeLabel(type) { return stepTypeLabels[type] || '步骤' }
@@ -419,6 +433,41 @@ async function deleteStep(id) {
   } catch (e) {
     toast.error(e.message)
   }
+}
+
+// --- 拖拽排序 ---
+function onDragStart(idx, e) {
+  dragIdx.value = idx
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('text/plain', idx)
+}
+function onDragOver(idx) {
+  dragOverIdx.value = idx
+}
+function onDragLeave() {
+  dragOverIdx.value = -1
+}
+async function onDrop(targetIdx) {
+  const from = dragIdx.value
+  dragOverIdx.value = -1
+  dragIdx.value = -1
+  if (from === targetIdx) return
+  const list = [...stepsList.value]
+  const [moved] = list.splice(from, 1)
+  list.splice(targetIdx, 0, moved)
+  // 更新 order
+  const updated = list.map((s, i) => ({ ...s, order: i }))
+  stepsList.value = updated
+  // 持久化
+  try {
+    await put('/steps/reorder/batch', { items: updated.map(s => ({ id: s.id, order: s.order })) })
+  } catch (e) {
+    toast.error('排序保存失败')
+  }
+}
+function onDragEnd() {
+  dragIdx.value = -1
+  dragOverIdx.value = -1
 }
 
 function isOverdue(task) {
@@ -624,7 +673,21 @@ onUnmounted(() => clearTimeout(searchTimer))
   border-radius: var(--radius-md);
   border: 1px solid var(--c-border);
   background: var(--c-surface);
+  transition: transform 0.15s var(--ease-smooth), box-shadow 0.15s var(--ease-smooth), border-color 0.15s var(--ease-smooth);
+  cursor: grab;
 }
+.step-item:active { cursor: grabbing; }
+.step-item.drag-over {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 2px var(--c-primary-soft);
+  transform: translateY(2px);
+}
+.step-drag-handle {
+  color: var(--c-text-3); font-size: 16px;
+  cursor: grab; line-height: 1; flex-shrink: 0;
+  user-select: none;
+}
+.step-drag-handle:active { cursor: grabbing; }
 .step-item.step-start { border-left: 3px solid var(--c-green); }
 .step-item.step-end { border-left: 3px solid var(--c-primary); }
 .step-item.step-branch { border-left: 3px solid var(--c-orange); }

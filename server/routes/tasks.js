@@ -4,6 +4,7 @@ import { createStore } from '../store/base.js'
 
 const router = Router()
 const tasks = createStore('tasks.json')
+const steps = createStore('steps.json')
 
 // 获取任务列表
 router.get('/', async (req, res) => {
@@ -106,6 +107,17 @@ router.post('/', async (req, res) => {
       updatedAt: now
     }
     await tasks.create(item)
+
+    // 自动创建默认步骤：开始 + 完成
+    await steps.create({
+      id: uuidv4(), taskId: item.id, title: '开始', type: 'start',
+      status: 'done', order: 0, createdAt: now, updatedAt: now
+    })
+    await steps.create({
+      id: uuidv4(), taskId: item.id, title: '完成', type: 'end',
+      status: 'pending', order: 1, createdAt: now, updatedAt: now
+    })
+
     res.status(201).json(item)
   } catch (err) {
     res.status(500).json({ error: err.message })
