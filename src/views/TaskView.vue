@@ -407,6 +407,14 @@ async function addStep() {
   try {
     await post('/steps', { taskId: stepsTask.value.id, title: newStepTitle.value.trim(), type: newStepType.value })
     newStepTitle.value = ''
+    // 刷新后把新步骤排到"完成"之前
+    const all = await get('/steps?taskId=' + stepsTask.value.id)
+    const endIdx = all.findIndex(s => s.type === 'end')
+    if (endIdx !== -1) {
+      const endStep = all.splice(endIdx, 1)[0]
+      all.push(endStep)
+      await put('/steps/reorder/batch', { items: all.map((s, i) => ({ id: s.id, order: i })) })
+    }
     stepsList.value = await get('/steps?taskId=' + stepsTask.value.id)
   } catch (e) {
     toast.error(e.message)

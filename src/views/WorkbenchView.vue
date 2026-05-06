@@ -36,64 +36,98 @@
 
           <!-- 步骤流程图 -->
           <div class="lane-flow">
-            <div v-if="task.steps?.length === 0" class="lane-no-steps">
+            <div v-if="flowBlocks(task).length === 0" class="lane-no-steps">
               暂无步骤，请在任务页分解
             </div>
             <template v-else>
-              <div
-                v-for="(step, si) in task.steps"
-                :key="step.id"
-                class="flow-node-wrap"
-              >
-                <div v-if="si > 0" class="flow-connector" :class="{ done: task.steps[si-1]?.status === 'done' }"></div>
-
+              <template v-for="(block, bi) in flowBlocks(task)" :key="block.key">
+                <!-- 连接线（也是拖放目标） -->
                 <div
+                  v-if="block.connector"
+                  class="flow-connector"
+                  :class="{ done: block.connectorDone, 'drag-over': isConnectorDragOver(task, block) }"
+                  @dragover.prevent="onConnectorDragOver(task, block.dropIdx)"
+                  @dragleave="onConnectorDragLeave(task)"
+                  @drop.prevent="onConnectorDrop(task, block.dropIdx)"
+                ></div>
+
+                <!-- 单步骤节点 -->
+                <div
+                  v-if="block.type === 'single'"
                   class="flow-node"
-                  :class="[
-                    'node-' + step.type,
-                    { 'node-done': step.status === 'done', 'node-active': isActiveStep(task, si) }
-                  ]"
-                  draggable="true"
-                  @dragstart="onFlowDragStart(task, si, $event)"
-                  @dragover.prevent="onFlowDragOver(task, si)"
-                  @dragleave="onFlowDragLeave(task)"
-                  @drop.prevent="onFlowDrop(task, si)"
+                  :class="nodeClasses(task, block.step, block.stepIdx)"
+                  :draggable="isDraggable(block.step)"
+                  @dragstart="onFlowDragStart(task, block.stepIdx, $event)"
+                  @dragover.prevent="onNodeDragOver(task, block.stepIdx)"
+                  @dragleave="onNodeDragLeave(task)"
+                  @drop.prevent="onNodeDrop(task, block.stepIdx)"
                   @dragend="onFlowDragEnd(task)"
                 >
-                  <span class="node-drag-handle" title="拖拽排序">⠿</span>
-                  <span class="node-icon">{{ stepIcon(step) }}</span>
-                  <!-- 内联编辑 vs 显示 -->
+                  <span v-if="isDraggable(block.step)" class="node-drag-handle" title="拖拽排序">⠿</span>
+                  <span v-else class="node-drag-handle node-locked" title="固定位置">🔒</span>
+                  <span class="node-icon">{{ stepIcon(block.step) }}</span>
                   <input
-                    v-if="step._editing"
-                    v-model="step._editTitle"
+                    v-if="block.step._editing"
+                    v-model="block.step._editTitle"
                     class="node-edit-input"
                     @click.stop
-                    @keyup.enter="saveStepTitle(task, step)"
-                    @keyup.escape="step._editing = false"
-                    @blur="saveStepTitle(task, step)"
+                    @keyup.enter="saveStepTitle(task, block.step)"
+                    @keyup.escape="block.step._editing = false"
+                    @blur="saveStepTitle(task, block.step)"
                   />
-                  <span v-else class="node-title" @dblclick.stop="startEditStep(step)">{{ step.title }}</span>
-                  <span class="node-type" :class="'badge-' + stepTypeColor(step.type)">{{ stepTypeLabel(step.type) }}</span>
-                  <!-- 完成/回退按钮 -->
-                  <button
-                    v-if="step.status !== 'done'"
-                    class="node-done-btn"
-                    @click.stop="markStepDone(task, step)"
-                    title="标记完成"
-                  >✓</button>
-                  <button
-                    v-else
-                    class="node-undo-btn"
-                    @click.stop="markStepUndone(task, step)"
-                    title="回退未完成"
-                  >↩</button>
-                  <!-- 编辑 & 删除按钮 -->
+                  <span v-else class="node-title" @dblclick.stop="startEditStep(block.step)">{{ block.step.title }}</span>
+                  <span class="node-type" :class="'badge-' + stepTypeColor(block.step.type)">{{ stepTypeLabel(block.step.type) }}</span>
+                  <button v-if="block.step.status !== 'done'" class="node-done-btn" @click.stop="markStepDone(task, block.step)" title="标记完成">✓</button>
+                  <button v-else class="node-undo-btn" @click.stop="markStepUndone(task, block.step)" title="回退未完成">↩</button>
                   <div class="node-hover-actions">
-                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="startEditStep(step)" title="编辑">✏️</button>
-                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="deleteFlowStep(task, step)" title="删除">🗑️</button>
+                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="startEditStep(block.step)" title="编辑">✏️</button>
+                    <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="deleteFlowStep(task, block.step)" title="删除">🗑️</button>
                   </div>
                 </div>
-              </div>
+
+                <!-- 分支组（横向并排） -->
+                <div
+                  v-if="block.type === 'branches'"
+                  class="branch-row"
+                  @dragover.prevent="onBranchRowDragOver(task, block.firstIdx)"
+                  @dragleave="onBranchRowDragLeave(task)"
+                  @drop.prevent="onBranchRowDrop(task, block.firstIdx)"
+                >
+                  <div
+                    v-for="bs in block.steps"
+                    :key="bs.id"
+                    class="flow-node branch-node"
+                    :class="nodeClasses(task, bs, block.stepIdxMap[bs.id])"
+                    :draggable="isDraggable(bs)"
+                    @dragstart.stop="onFlowDragStart(task, block.stepIdxMap[bs.id], $event)"
+                    @dragover.prevent="onNodeDragOver(task, block.stepIdxMap[bs.id])"
+                    @dragleave="onNodeDragLeave(task)"
+                    @drop.prevent="onNodeDrop(task, block.stepIdxMap[bs.id])"
+                    @dragend="onFlowDragEnd(task)"
+                  >
+                    <span v-if="isDraggable(bs)" class="node-drag-handle" title="拖拽排序">⠿</span>
+                    <span v-else class="node-drag-handle node-locked">🔒</span>
+                    <span class="node-icon">{{ stepIcon(bs) }}</span>
+                    <input
+                      v-if="bs._editing"
+                      v-model="bs._editTitle"
+                      class="node-edit-input"
+                      @click.stop
+                      @keyup.enter="saveStepTitle(task, bs)"
+                      @keyup.escape="bs._editing = false"
+                      @blur="saveStepTitle(task, bs)"
+                    />
+                    <span v-else class="node-title" @dblclick.stop="startEditStep(bs)">{{ bs.title }}</span>
+                    <span class="node-type" :class="'badge-' + stepTypeColor(bs.type)">{{ stepTypeLabel(bs.type) }}</span>
+                    <button v-if="bs.status !== 'done'" class="node-done-btn" @click.stop="markStepDone(task, bs)" title="标记完成">✓</button>
+                    <button v-else class="node-undo-btn" @click.stop="markStepUndone(task, bs)" title="回退未完成">↩</button>
+                    <div class="node-hover-actions">
+                      <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="startEditStep(bs)" title="编辑">✏️</button>
+                      <button class="btn btn-sm btn-ghost node-action-btn" @click.stop="deleteFlowStep(task, bs)" title="删除">🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </template>
           </div>
 
@@ -108,13 +142,11 @@
               />
               <select v-model="task._newStepType" class="select select-sm" style="width:auto;min-width:70px">
                 <option value="step">步骤</option>
-                <option value="start">开始</option>
                 <option value="branch">分支</option>
-                <option value="end">结束</option>
               </select>
               <button class="btn btn-sm btn-primary" @click="quickAddStep(task)">＋</button>
             </div>
-            <button class="btn btn-sm" @click="markTaskDone(task)" v-if="task.status !== 'done'">✓ 标记完成</button>
+            <button class="btn btn-sm" @click="markAllStepsDone(task)" v-if="task.status !== 'done'">✓ 标记全部完成</button>
             <span v-else class="lane-done-label">✅ 已完成</span>
           </div>
         </div>
@@ -159,7 +191,6 @@ const showAddDialog = ref(false)
 const addTaskId = ref('')
 const availableTasks = ref([])
 
-// 拖拽状态（按 taskId 存储）
 const flowDrag = ref({})
 
 const stepTypeLabels = { start: '开始', step: '步骤', branch: '分支', end: '结束' }
@@ -171,6 +202,18 @@ function stepIcon(step) {
   return { start: '▶', step: '●', branch: '◇', end: '■' }[step.type] || '●'
 }
 
+// 开始/结束不可拖动
+function isDraggable(step) {
+  return step.type !== 'start' && step.type !== 'end'
+}
+
+function nodeClasses(task, step, idx) {
+  return [
+    'node-' + step.type,
+    { 'node-done': step.status === 'done', 'node-active': isActiveStep(task, idx) }
+  ]
+}
+
 function isActiveStep(task, idx) {
   const steps = task.steps || []
   if (steps.length === 0) return false
@@ -179,6 +222,102 @@ function isActiveStep(task, idx) {
   return idx === firstUndone
 }
 
+// --- 流程块（分组连续分支） ---
+function flowBlocks(task) {
+  const steps = task.steps || []
+  if (steps.length === 0) return []
+  const blocks = []
+
+  let i = 0
+  while (i < steps.length) {
+    // 收集连续的分支
+    if (steps[i].type === 'branch') {
+      const branchSteps = []
+      const firstIdx = i
+      const stepIdxMap = {}
+      while (i < steps.length && steps[i].type === 'branch') {
+        stepIdxMap[steps[i].id] = i
+        branchSteps.push(steps[i])
+        i++
+      }
+      blocks.push({
+        key: 'branch-' + firstIdx,
+        type: 'branches',
+        steps: branchSteps,
+        firstIdx,
+        stepIdxMap,
+        connector: firstIdx > 0,
+        connectorDone: firstIdx > 0 ? steps[firstIdx - 1]?.status === 'done' : false,
+        dropIdx: firstIdx
+      })
+    } else {
+      blocks.push({
+        key: 'step-' + i,
+        type: 'single',
+        step: steps[i],
+        stepIdx: i,
+        connector: i > 0,
+        connectorDone: i > 0 ? steps[i - 1]?.status === 'done' : false,
+        dropIdx: i
+      })
+      i++
+    }
+  }
+
+  return blocks
+}
+
+// --- 连线拖放目标判断 ---
+function isConnectorDragOver(task, block) {
+  return flowDrag.value.taskId === task.id && flowDrag.value.overConnector === block.dropIdx
+}
+function onConnectorDragOver(task, idx) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.overConnector = idx
+    flowDrag.value.over = -1
+  }
+}
+function onConnectorDragLeave(task) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.overConnector = -1
+  }
+}
+async function onConnectorDrop(task, targetIdx) {
+  await doDrop(task, targetIdx)
+}
+
+function onBranchRowDragOver(task, idx) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.overConnector = idx
+    flowDrag.value.over = -1
+  }
+}
+function onBranchRowDragLeave(task) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.overConnector = -1
+  }
+}
+async function onBranchRowDrop(task, targetIdx) {
+  await doDrop(task, targetIdx)
+}
+
+// --- 节点拖放 ---
+function onNodeDragOver(task, idx) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.over = idx
+    flowDrag.value.overConnector = -1
+  }
+}
+function onNodeDragLeave(task) {
+  if (flowDrag.value.taskId === task.id) {
+    flowDrag.value.over = -1
+  }
+}
+async function onNodeDrop(task, targetIdx) {
+  await doDrop(task, targetIdx)
+}
+
+// --- 数据加载 ---
 async function load() {
   loading.value = true
   try {
@@ -210,9 +349,7 @@ async function addToWorkbench() {
     addTaskId.value = ''
     await load()
     toast.success('已添加到工作台')
-  } catch (e) {
-    toast.error(e.message)
-  }
+  } catch (e) { toast.error(e.message) }
 }
 
 async function removeFromWorkbench(task) {
@@ -221,27 +358,21 @@ async function removeFromWorkbench(task) {
     await put('/tasks/' + task.id, { inWorkbench: false })
     await load()
     toast.success('已移出工作台')
-  } catch (e) {
-    toast.error(e.message)
-  }
+  } catch (e) { toast.error(e.message) }
 }
 
 async function markStepDone(task, step) {
   try {
     await put('/steps/' + step.id, { status: 'done' })
     await refreshTaskSteps(task)
-  } catch (e) {
-    toast.error(e.message)
-  }
+  } catch (e) { toast.error(e.message) }
 }
 
 async function markStepUndone(task, step) {
   try {
     await put('/steps/' + step.id, { status: 'pending' })
     await refreshTaskSteps(task)
-  } catch (e) {
-    toast.error(e.message)
-  }
+  } catch (e) { toast.error(e.message) }
 }
 
 function startEditStep(step) {
@@ -256,9 +387,7 @@ async function saveStepTitle(task, step) {
   try {
     await put('/steps/' + step.id, { title })
     await refreshTaskSteps(task)
-  } catch (e) {
-    toast.error(e.message)
-  }
+  } catch (e) { toast.error(e.message) }
 }
 
 async function deleteFlowStep(task, step) {
@@ -266,9 +395,7 @@ async function deleteFlowStep(task, step) {
   try {
     await del('/steps/' + step.id)
     await refreshTaskSteps(task)
-  } catch (e) {
-    toast.error(e.message)
-  }
+  } catch (e) { toast.error(e.message) }
 }
 
 async function refreshTaskSteps(task) {
@@ -279,65 +406,83 @@ async function refreshTaskSteps(task) {
   }
 }
 
+// 快速添加（插入到完成之前）
 async function quickAddStep(task) {
   const title = (task._newStepTitle || '').trim()
   if (!title) return
   try {
     await post('/steps', { taskId: task.id, title, type: task._newStepType || 'step' })
     task._newStepTitle = ''
-    const wbTask = workbenchTasks.value.find(t => t.id === task.id)
-    if (wbTask) {
-      wbTask.steps = await get('/steps?taskId=' + task.id)
+    // 刷新后把新步骤排到"完成"之前
+    const steps = await get('/steps?taskId=' + task.id)
+    const endIdx = steps.findIndex(s => s.type === 'end')
+    if (endIdx !== -1) {
+      const endStep = steps.splice(endIdx, 1)[0]
+      steps.push(endStep)
+      await put('/steps/reorder/batch', { items: steps.map((s, i) => ({ id: s.id, order: i })) })
     }
-  } catch (e) {
-    toast.error(e.message)
-  }
+    await refreshTaskSteps(task)
+  } catch (e) { toast.error(e.message) }
 }
 
-async function markTaskDone(task) {
-  if (!await confirmDialog.value?.show(`确定将「${task.title}」标记为已完成？`)) return
+// 标记全部完成
+async function markAllStepsDone(task) {
+  if (!await confirmDialog.value?.show(`将「${task.title}」的所有步骤标记为完成？`)) return
   try {
+    const steps = task.steps || []
+    for (const s of steps) {
+      if (s.status !== 'done') {
+        await put('/steps/' + s.id, { status: 'done' })
+      }
+    }
     await put('/tasks/' + task.id, { status: 'done', inWorkbench: false })
     await load()
-    toast.success('任务已完成')
-  } catch (e) {
-    toast.error(e.message)
-  }
+    toast.success('任务全部完成')
+  } catch (e) { toast.error(e.message) }
 }
 
-// --- 工作台内拖拽排序 ---
+// --- 拖拽排序 ---
 function onFlowDragStart(task, idx, e) {
-  flowDrag.value = { taskId: task.id, from: idx }
+  const step = (task.steps || [])[idx]
+  if (!isDraggable(step)) { e.preventDefault(); return }
+  flowDrag.value = { taskId: task.id, from: idx, over: -1, overConnector: -1 }
   e.dataTransfer.effectAllowed = 'move'
 }
-function onFlowDragOver(task, idx) {
-  if (flowDrag.value.taskId === task.id) {
-    flowDrag.value.over = idx
-  }
-}
-function onFlowDragLeave(task) {
-  if (flowDrag.value.taskId === task.id) {
-    flowDrag.value.over = -1
-  }
-}
-async function onFlowDrop(task, targetIdx) {
+
+async function doDrop(task, targetIdx) {
   const { taskId, from } = flowDrag.value
-  flowDrag.value = {}
-  if (taskId !== task.id || from === targetIdx) return
+  if (taskId !== task.id || from === targetIdx) {
+    flowDrag.value = {}
+    return
+  }
   const wbTask = workbenchTasks.value.find(t => t.id === task.id)
-  if (!wbTask) return
-  const list = [...wbTask.steps]
+  if (!wbTask) { flowDrag.value = {}; return }
+
+  const steps = wbTask.steps || []
+  const fromStep = steps[from]
+  if (!fromStep || !isDraggable(fromStep)) { flowDrag.value = {}; return }
+
+  // 不能拖到开始之前或结束之后
+  const clampTarget = Math.max(1, Math.min(targetIdx, steps.length - 2))
+
+  const list = [...steps]
   const [moved] = list.splice(from, 1)
-  list.splice(targetIdx, 0, moved)
+  // 调整 target（splice 后索引会变）
+  const adjTarget = from < clampTarget ? clampTarget - 1 : clampTarget
+  list.splice(adjTarget, 0, moved)
+
   const reordered = list.map((s, i) => ({ ...s, order: i, _editing: false, _editTitle: '' }))
   wbTask.steps = reordered
+  flowDrag.value = {}
+
   try {
     await put('/steps/reorder/batch', { items: reordered.map(s => ({ id: s.id, order: s.order })) })
   } catch (e) {
     toast.error('排序保存失败')
   }
 }
-function onFlowDragEnd(task) {
+
+async function onFlowDragEnd(task) {
   flowDrag.value = {}
 }
 
@@ -355,7 +500,6 @@ onMounted(load)
   font-weight: var(--fw-bold); color: var(--c-text);
 }
 
-/* --- Swimlanes --- */
 .swimlanes {
   display: grid;
   grid-template-columns: repeat(var(--lane-count, 1), minmax(280px, 1fr));
@@ -363,7 +507,6 @@ onMounted(load)
   align-items: start;
 }
 
-/* --- Lane (整个任务列是一个卡片) --- */
 .lane {
   padding: 0;
   overflow: hidden;
@@ -419,9 +562,14 @@ onMounted(load)
   width: 2px; height: 18px;
   background: var(--c-border-2);
   margin-left: 18px;
-  transition: background var(--t-fast);
+  transition: background var(--t-fast), height var(--t-fast);
 }
 .flow-connector.done { background: var(--c-green); }
+.flow-connector.drag-over {
+  background: var(--c-primary);
+  height: 28px;
+  border-radius: 1px;
+}
 
 /* Node */
 .flow-node {
@@ -430,20 +578,19 @@ onMounted(load)
   border-radius: var(--radius-md);
   border: 1.5px solid var(--c-border);
   background: var(--c-surface);
-  cursor: pointer;
+  cursor: default;
   transition: all var(--t-fast) var(--ease-smooth);
   position: relative;
 }
-.flow-node:hover {
-  border-color: var(--c-primary);
-}
+.flow-node:hover { border-color: var(--c-primary); }
+.flow-node[draggable="true"] { cursor: grab; }
+.flow-node[draggable="true"]:active { cursor: grabbing; }
 
 .flow-node.node-start { border-left: 3px solid var(--c-green); }
 .flow-node.node-end   { border-left: 3px solid var(--c-primary); }
 .flow-node.node-branch{ border-left: 3px solid var(--c-orange); }
 .flow-node.node-step  { border-left: 3px solid var(--c-blue); }
 
-/* 已完成步骤 — 暗色主题下也能看清 */
 .flow-node.node-done {
   opacity: 0.7;
   background: var(--c-green-soft);
@@ -466,6 +613,10 @@ onMounted(load)
   cursor: grab; line-height: 1; flex-shrink: 0; user-select: none;
 }
 .node-drag-handle:active { cursor: grabbing; }
+.node-drag-handle.node-locked {
+  cursor: default; font-size: 11px;
+}
+
 .node-icon {
   font-size: 13px; width: 18px; text-align: center;
   flex-shrink: 0; color: var(--c-text-2);
@@ -518,6 +669,19 @@ onMounted(load)
   outline: none;
   font-family: var(--f-body);
   min-width: 0;
+}
+
+/* Branch row */
+.branch-row {
+  display: flex; gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-1) 0;
+  transition: background var(--t-fast);
+  border-radius: var(--radius-md);
+  min-height: 36px;
+}
+.branch-node {
+  flex: 1; min-width: 0;
 }
 
 /* Lane actions */
