@@ -7,12 +7,12 @@
           <button class="tab-btn" :class="{ active: viewMode === 'week' }" @click="viewMode = 'week'">周视图</button>
           <button class="tab-btn" :class="{ active: viewMode === 'month' }" @click="viewMode = 'month'">月视图</button>
         </div>
-        <button class="btn btn-sm" @click="goToday">今天</button>
+        <button class="btn btn-sm" @click="goToday">当前时间</button>
         <button class="btn btn-sm btn-ghost" @click="navWeek(-1)">◀</button>
         <span class="week-label">{{ weekLabel }}</span>
         <button class="btn btn-sm btn-ghost" @click="navWeek(1)">▶</button>
         <button class="btn btn-sm btn-ghost" @click="showConfig = true" title="配置">⚙</button>
-        <button class="btn" @click="openAdd">＋ 新增</button>
+        <button class="btn" @click="openAdd">＋ 新增计划</button>
       </div>
     </div>
 
@@ -231,10 +231,13 @@ function getDayItems(date) {
 }
 
 function itemStyle(item) {
-  const startH = item.startHour + item.startMinute / 60
-  const endH = item.endHour + item.endMinute / 60
-  const top = ((startH - config.workStartHour) / (config.workEndHour - config.workStartHour)) * 100
-  const h = Math.max(((endH - startH) / (config.workEndHour - config.workStartHour)) * 100, 2)
+  const sm = item.startMinute || 0
+  const em = item.endMinute || 0
+  const startH = item.startHour + sm / 60
+  const endH = item.endHour + em / 60
+  const rangeH = config.workEndHour - config.workStartHour
+  const top = ((startH - config.workStartHour) / rangeH) * 100
+  const h = Math.max(((endH - startH) / rangeH) * 100, 1)
   return {
     top: top + '%',
     height: h + '%',
@@ -319,9 +322,13 @@ async function onSlotDrop(d, h, e) {
 
   const original = allItems.value.find(i => i.id === itemId)
   if (!original) return
-  const durH = (original.endHour + original.endMinute / 60) - (original.startHour + original.startMinute / 60)
+  const durH = (original.endHour + (original.endMinute || 0) / 60) - (original.startHour + (original.startMinute || 0) / 60)
+  // 限制开始时间在范围内，且至少留出最小高度
+  h = Math.max(config.workStartHour, Math.min(config.workEndHour - 0.5, h))
   let newEnd = h + durH
   if (newEnd > config.workEndHour) newEnd = config.workEndHour
+  // 至少 0.5 小时
+  if (newEnd - h < 0.5) newEnd = Math.min(config.workEndHour, h + 0.5)
   const endH = Math.floor(newEnd)
   const endM = Math.round((newEnd - endH) * 60)
 
@@ -354,26 +361,29 @@ let resizeCleanup = null
 
 function onResizeStart(item, e) {
   const startY = e.clientY
+  const dayCol = e.target.closest('.day-col')
   item._resizing = true
   item._origEndH = item.endHour
-  item._origEndM = item.endMinute
+  item._origEndM = item.endMinute || 0
 
   function onMove(ev) {
+    const rect = dayCol.getBoundingClientRect()
+    const totalHours = config.workEndHour - config.workStartHour
+    const pxPerHour = rect.height / totalHours
     const dy = ev.clientY - startY
-    const slotH = document.querySelector('.hour-slot')?.offsetHeight || 60
-    const deltaH = Math.round(dy / slotH)
-    const newEnd = Math.max(item.startHour + 1, Math.min(24, item._origEndH + deltaH))
-    item.endHour = newEnd
-    item.endMinute = 0
+    const deltaH = Math.round(dy / pxPerHour)
+    const newEnd = Math.max(item.startHour + 0.5, Math.min(config.workEndHour, item._origEndH + deltaH))
+    item.endHour = Math.floor(newEnd)
+    item.endMinute = newEnd % 1 >= 0.5 ? 30 : 0
   }
 
   async function onUp() {
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
     item._resizing = false
-    if (item.endHour !== item._origEndH) {
+    if (item.endHour !== item._origEndH || item.endMinute !== item._origEndM) {
       try {
-        await put('/schedule/' + item.id, { endHour: item.endHour, endMinute: 0 })
+        await put('/schedule/' + item.id, { endHour: item.endHour, endMinute: item.endMinute })
         await loadItems()
       } catch (e) { toast.error(e.message) }
     }
@@ -446,6 +456,7 @@ async function saveItem() {
     taskId: form.taskId,
     title: task?.title || '',
     date: form.date, startHour: form.startHour, endHour: form.endHour,
+    startMinute: 0, endMinute: 0,
     color: form.color || null
   }
   try {
@@ -525,6 +536,7 @@ onMounted(async () => {
 }
 .day-col {
   flex: 1; position: relative; border-left: 1px solid var(--c-border);
+  overflow: hidden;
 }
 .day-col.today { background: var(--c-primary-soft); }
 .hour-slot {
