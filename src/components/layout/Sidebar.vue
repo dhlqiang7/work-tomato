@@ -49,6 +49,7 @@ const navItems = [
   { key: 'stats',    icon: '📊', label: '统计' },
   { key: 'review',   icon: '📝', label: '回顾' },
   { key: 'workbench', icon: '🖥️', label: '工作台' },
+  { key: 'schedule', icon: '📅', label: '计划表' },
 ]
 
 const reminders = ref([])

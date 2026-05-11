@@ -34,6 +34,7 @@ const groups = [
     { key: '4', desc: '统计' },
     { key: '5', desc: '回顾' },
     { key: '6', desc: '工作台' },
+    { key: '7', desc: '计划表' },
   ]},
   { title: '任务', items: [
     { key: 'N', desc: '新建任务' },

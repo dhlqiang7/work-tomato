@@ -10,6 +10,7 @@
         <StatsView v-else-if="currentView === 'stats'" @go-review="changeView('review')" />
         <ReviewView v-else-if="currentView === 'review'" />
         <WorkbenchView v-else-if="currentView === 'workbench'" />
+        <ScheduleView v-else-if="currentView === 'schedule'" />
       </main>
     </div>
     <Toast />
@@ -27,6 +28,7 @@ import PomodoroView from './views/PomodoroView.vue'
 import StatsView from './views/StatsView.vue'
 import ReviewView from './views/ReviewView.vue'
 import WorkbenchView from './views/WorkbenchView.vue'
+import ScheduleView from './views/ScheduleView.vue'
 import Toast from './components/common/Toast.vue'
 import ShortcutHelp from './components/common/ShortcutHelp.vue'
 
@@ -35,7 +37,7 @@ const isDark = ref(false)
 const pomodoroTarget = ref(null)
 const showShortcutHelp = ref(false)
 
-const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review', '6': 'workbench' }
+const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review', '6': 'workbench', '7': 'schedule' }
 
 function toggleTheme() {
   isDark.value = !isDark.value
