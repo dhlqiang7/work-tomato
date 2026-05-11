@@ -131,10 +131,20 @@
         </div>
         <div class="form-group">
           <label class="form-label">颜色</label>
-          <select v-model="form.color" class="select">
-            <option value="">默认</option>
-            <option v-for="c in colors" :key="c" :value="c" :style="{ background: c }">{{ c }}</option>
-          </select>
+          <div class="color-picker">
+            <button
+              v-for="c in ['']" :key="'none'" class="color-swatch color-none"
+              :class="{ active: !form.color }"
+              @click="form.color = ''"
+              title="默认"
+            >—</button>
+            <button
+              v-for="c in colors" :key="c" class="color-swatch"
+              :class="{ active: form.color === c }"
+              :style="{ background: c }"
+              @click="form.color = c"
+            ></button>
+          </div>
         </div>
       </div>
       <div class="form-row">
@@ -176,7 +186,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -400,7 +410,10 @@ async function loadConfig() {
 }
 
 async function loadTasks() {
-  try { pendingTasks.value = await get('/tasks?status=pending') } catch {}
+  try {
+    const all = await get('/tasks')
+    pendingTasks.value = all.filter(t => t.status !== 'done')
+  } catch {}
 }
 
 async function saveConfig() {
@@ -517,7 +530,8 @@ onMounted(async () => {
 /* Week View */
 .week-view { flex: 1; overflow: auto; display: flex; flex-direction: column; }
 .week-grid { flex: 1; display: flex; flex-direction: column; }
-.week-header { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--c-border); position: sticky; top: 0; background: var(--c-bg); z-index: 2; }
+.week-header { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--c-border); position: sticky; top: 0; background: var(--c-bg); z-index: 2; pointer-events: none; }
+.week-header > * { pointer-events: auto; }
 .time-gutter { width: 52px; flex-shrink: 0; }
 .day-header {
   flex: 1; text-align: center; padding: var(--sp-1) 0;
@@ -598,8 +612,9 @@ onMounted(async () => {
 .mday-cell.other { opacity: 0.4; }
 .mday-num { font-size: var(--fs-xs); color: var(--c-text-2); font-weight: var(--fw-medium); margin-bottom: 1px; }
 .mday-section {
-  flex: 1; font-size: 10px; min-height: 16px;
-  border-radius: 2px; padding: 1px; margin: 1px 0;
+  flex: 1; font-size: 10px; min-height: 20px;
+  border-radius: 2px; padding: 2px; margin: 1px 0;
+  cursor: pointer;
 }
 .mday-am { background: rgba(74,143,191,0.1); }
 .mday-pm { background: rgba(217,79,59,0.08); }
@@ -611,4 +626,18 @@ onMounted(async () => {
   font-size: 10px; line-height: 1.3;
 }
 .mday-item:hover { opacity: 0.8; }
+
+.color-picker { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.color-swatch {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: 3px solid transparent; cursor: pointer;
+  transition: all var(--t-fast);
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: var(--c-text); box-shadow: 0 0 0 2px var(--c-bg); }
+.color-swatch.color-none {
+  background: var(--c-bg); border: 2px dashed var(--c-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--c-text-3);
+}
 </style>
