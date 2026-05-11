@@ -62,6 +62,8 @@
                 :draggable="!item._resizing"
                 @dragstart="onItemDragStart(item, d.date, $event)"
                 @dragend="onItemDragEnd"
+                @dragover.prevent="onItemDragOver(d, $event)"
+                @drop.prevent="onItemDrop(d, $event)"
                 @click="openEdit(item)"
               >
                 <div class="si-time">{{ fmtTime(item.startHour, item.startMinute) }}-{{ fmtTime(item.endHour, item.endMinute) }}</div>
@@ -354,18 +356,27 @@ const dragState = ref({})
 function onItemDragStart(item, fromDate, e) {
   dragState.value = { itemId: item.id, fromDate, ctrl: e.ctrlKey }
   e.dataTransfer.effectAllowed = 'move'
-  // 同步屏蔽所有条目指针事件，让 dragover/drop 穿透到 hour-slot
-  document.querySelectorAll('.schedule-item').forEach(el => {
-    el.style.pointerEvents = 'none'
-  })
 }
 
 function onItemDragEnd() {
   dragState.value = {}
-  // 恢复指针事件
-  document.querySelectorAll('.schedule-item').forEach(el => {
-    el.style.pointerEvents = ''
-  })
+}
+
+function onItemDragOver(d, e) {
+  const h = hourFromEvent(e)
+  if (h == null) return
+  document.querySelectorAll('.hour-slot.drag-over').forEach(el => el.classList.remove('drag-over'))
+  const col = e.currentTarget.closest('.day-col')
+  const idx = h - config.workStartHour
+  const slot = col.querySelectorAll('.hour-slot')[idx]
+  if (slot) slot.classList.add('drag-over')
+}
+
+function onItemDrop(d, e) {
+  document.querySelectorAll('.hour-slot.drag-over').forEach(el => el.classList.remove('drag-over'))
+  const h = hourFromEvent(e)
+  if (h == null) return
+  onSlotDrop(d, h, e)
 }
 
 function onSlotDragOver(d, h, e) {
