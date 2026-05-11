@@ -131,11 +131,11 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">开始时间</label>
-          <input v-model="form.startHour" class="input" type="number" min="0" max="23" style="width:60px" />
+          <input v-model="form.startHour" class="input" type="number" min="0" max="23" step="1" style="width:60px" />
         </div>
         <div class="form-group">
           <label class="form-label">结束时间</label>
-          <input v-model="form.endHour" class="input" type="number" min="0" max="24" style="width:60px" />
+          <input v-model="form.endHour" class="input" type="number" min="0" max="24" step="1" style="width:60px" />
         </div>
       </div>
       <template #footer>
@@ -231,13 +231,10 @@ function getDayItems(date) {
 }
 
 function itemStyle(item) {
-  const sm = item.startMinute || 0
-  const em = item.endMinute || 0
-  const startH = item.startHour + sm / 60
-  const endH = item.endHour + em / 60
   const rangeH = config.workEndHour - config.workStartHour
-  const top = ((startH - config.workStartHour) / rangeH) * 100
-  const h = Math.max(((endH - startH) / rangeH) * 100, 1)
+  const dur = Math.max(item.endHour - item.startHour, 1)
+  const top = ((item.startHour - config.workStartHour) / rangeH) * 100
+  const h = (dur / rangeH) * 100
   return {
     top: top + '%',
     height: h + '%',
@@ -322,22 +319,19 @@ async function onSlotDrop(d, h, e) {
 
   const original = allItems.value.find(i => i.id === itemId)
   if (!original) return
-  const durH = (original.endHour + (original.endMinute || 0) / 60) - (original.startHour + (original.startMinute || 0) / 60)
-  // 限制开始时间在范围内，且至少留出最小高度
-  h = Math.max(config.workStartHour, Math.min(config.workEndHour - 0.5, h))
-  let newEnd = h + durH
-  if (newEnd > config.workEndHour) newEnd = config.workEndHour
-  // 至少 0.5 小时
-  if (newEnd - h < 0.5) newEnd = Math.min(config.workEndHour, h + 0.5)
-  const endH = Math.floor(newEnd)
-  const endM = Math.round((newEnd - endH) * 60)
+  // 保持原始时长（整小时），至少1小时
+  let durH = original.endHour - original.startHour
+  if (durH < 1) durH = 1
+  // 吸附：开始时间限制在工作范围内，且结束时间不超出工作范围
+  h = Math.max(config.workStartHour, Math.min(config.workEndHour - durH, h))
+  const endH = h + durH
 
   if (ctrl && fromDate !== d.date) {
     try {
       await post('/schedule', {
         title: original.title, description: original.description,
         taskId: original.taskId, date: d.date,
-        startHour: h, startMinute: 0, endHour: endH, endMinute: endM,
+        startHour: h, startMinute: 0, endHour: endH, endMinute: 0,
         color: original.color
       })
       await loadItems()
@@ -345,7 +339,7 @@ async function onSlotDrop(d, h, e) {
   } else {
     try {
       await put('/schedule/' + itemId, {
-        date: d.date, startHour: h, startMinute: 0, endHour: endH, endMinute: endM
+        date: d.date, startHour: h, startMinute: 0, endHour: endH, endMinute: 0
       })
       await loadItems()
     } catch (e) { toast.error(e.message) }
@@ -364,26 +358,27 @@ function onResizeStart(item, e) {
   const dayCol = e.target.closest('.day-col')
   item._resizing = true
   item._origEndH = item.endHour
-  item._origEndM = item.endMinute || 0
 
   function onMove(ev) {
     const rect = dayCol.getBoundingClientRect()
     const totalHours = config.workEndHour - config.workStartHour
     const pxPerHour = rect.height / totalHours
     const dy = ev.clientY - startY
+    // 吸附到整小时
     const deltaH = Math.round(dy / pxPerHour)
-    const newEnd = Math.max(item.startHour + 0.5, Math.min(config.workEndHour, item._origEndH + deltaH))
-    item.endHour = Math.floor(newEnd)
-    item.endMinute = newEnd % 1 >= 0.5 ? 30 : 0
+    // 至少1小时，不超过工作结束时间
+    const newEnd = Math.max(item.startHour + 1, Math.min(config.workEndHour, item._origEndH + deltaH))
+    item.endHour = newEnd
+    item.endMinute = 0
   }
 
   async function onUp() {
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
     item._resizing = false
-    if (item.endHour !== item._origEndH || item.endMinute !== item._origEndM) {
+    if (item.endHour !== item._origEndH) {
       try {
-        await put('/schedule/' + item.id, { endHour: item.endHour, endMinute: item.endMinute })
+        await put('/schedule/' + item.id, { endHour: item.endHour, endMinute: 0 })
         await loadItems()
       } catch (e) { toast.error(e.message) }
     }
@@ -451,6 +446,7 @@ function openAdd() {
 
 async function saveItem() {
   if (!form.taskId) return toast.warning('请选择任务')
+  if (form.endHour - form.startHour < 1) return toast.warning('计划时长至少1小时')
   const task = pendingTasks.value.find(t => t.id === form.taskId)
   const payload = {
     taskId: form.taskId,
