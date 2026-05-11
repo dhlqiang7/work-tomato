@@ -603,10 +603,14 @@ onMounted(async () => {
 }
 .day-col.today { background: var(--c-primary-soft); }
 .hour-slot {
-  height: 60px; border-bottom: 1px solid var(--c-border);
+  height: 60px; box-shadow: inset 0 -1px 0 var(--c-border);
   transition: background var(--t-fast);
 }
-.hour-slot.drag-over { background: var(--c-primary-soft); }
+.hour-slot.drag-over {
+  background: var(--c-blue);
+  opacity: 0.25;
+  position: relative; z-index: 5;
+}
 
 /* 休息时间背景色带 */
 .rest-block {
