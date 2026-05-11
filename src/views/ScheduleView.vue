@@ -38,6 +38,13 @@
             </div>
             <div v-for="d in weekDays" :key="d.date" class="day-col" :class="{ today: d.isToday }"
               @dragover.prevent @drop.prevent="onDayDrop(d, $event)">
+              <!-- 休息时间块 -->
+              <div
+                v-for="(rp, ri) in config.restPeriods"
+                :key="'rest'+ri"
+                class="rest-block"
+                :style="restStyle(rp)"
+              ></div>
               <div v-for="h in hours" :key="h" class="hour-slot"
                 @dragover.prevent="onSlotDragOver(d, h, $event)"
                 @dragleave="onSlotDragLeave"
@@ -100,10 +107,13 @@
     <Modal v-model="showModal" :title="editingItem ? '编辑计划' : '新增计划'" width="480px">
       <div class="form-group">
         <label class="form-label">选择任务 *</label>
-        <select v-model="form.taskId" class="select" :disabled="!!editingItem">
-          <option value="">-- 请选择 --</option>
-          <option v-for="t in pendingTasks" :key="t.id" :value="t.id">{{ t.priority }} | {{ t.title }}</option>
-        </select>
+        <div style="display:flex;gap:8px">
+          <select v-model="form.taskId" class="select" :disabled="!!editingItem" style="flex:1">
+            <option value="">-- 请选择 --</option>
+            <option v-for="t in pendingTasks" :key="t.id" :value="t.id">{{ t.priority }} | {{ t.title }}</option>
+          </select>
+          <button v-if="!editingItem" class="btn btn-sm" @click="createTaskForSchedule">新建任务</button>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -145,16 +155,24 @@
     </Modal>
 
     <!-- 配置弹窗 -->
-    <Modal v-model="showConfig" title="计划表配置" width="400px">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">工作开始时间</label>
-          <input v-model.number="config.workStartHour" class="input" type="number" min="0" max="23" />
+    <Modal v-model="showConfig" title="计划表配置" width="420px">
+      <div class="form-group">
+        <label class="form-label">工作范围</label>
+        <div class="form-row">
+          <input v-model.number="config.workStartHour" class="input" type="number" min="0" max="23" style="width:80px" />
+          <span style="padding:0 4px">—</span>
+          <input v-model.number="config.workEndHour" class="input" type="number" min="1" max="24" style="width:80px" />
         </div>
-        <div class="form-group">
-          <label class="form-label">工作结束时间</label>
-          <input v-model.number="config.workEndHour" class="input" type="number" min="1" max="24" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">休息时间</label>
+        <div v-for="(rp, i) in config.restPeriods" :key="i" class="form-row" style="margin-bottom:4px">
+          <input v-model.number="rp.start" class="input" type="number" min="0" max="23" style="width:60px" />
+          <span style="padding:0 2px">—</span>
+          <input v-model.number="rp.end" class="input" type="number" min="1" max="24" style="width:60px" />
+          <button class="btn btn-sm btn-ghost" @click="config.restPeriods.splice(i,1)" title="删除">×</button>
         </div>
+        <button class="btn btn-sm" @click="config.restPeriods.push({start:12,end:13})">＋ 添加</button>
       </div>
       <template #footer>
         <button class="btn" @click="showConfig = false">取消</button>
@@ -167,7 +185,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -175,6 +193,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
+const openTaskCreate = inject('openTaskCreate')
 const confirmDialog = ref(null)
 const loading = ref(true)
 const viewMode = ref('week')
@@ -187,7 +206,7 @@ const weekOffset = ref(0)
 const monthOffset = ref(0)
 const allItems = ref([])
 
-const config = reactive({ workStartHour: 9, workEndHour: 22 })
+const config = reactive({ workStartHour: 9, workEndHour: 22, restPeriods: [] })
 const colors = ['#D94F3B','#E8943A','#5B8C5A','#4A8FBF','#9B59B6','#1ABC9C','#34495E']
 
 const defaultForm = {
@@ -227,7 +246,28 @@ const weekLabel = computed(() => {
 })
 
 function getDayItems(date) {
-  return allItems.value.filter(i => i.date === date)
+  const items = allItems.value.filter(i => i.date === date)
+  items.sort((a, b) => a.startHour - b.startHour || (a.startMinute || 0) - (b.startMinute || 0))
+  // 贪心分配列：重叠条目分配到不同列
+  const cols = []
+  for (const item of items) {
+    let placed = false
+    for (let c = 0; c < cols.length; c++) {
+      if (cols[c] <= item.startHour) {
+        item._col = c
+        cols[c] = item.endHour
+        placed = true
+        break
+      }
+    }
+    if (!placed) {
+      item._col = cols.length
+      cols.push(item.endHour)
+    }
+  }
+  const totalCols = cols.length
+  for (const item of items) item._cols = totalCols
+  return items
 }
 
 function itemStyle(item) {
@@ -235,11 +275,25 @@ function itemStyle(item) {
   const dur = Math.max(item.endHour - item.startHour, 1)
   const top = ((item.startHour - config.workStartHour) / rangeH) * 100
   const h = (dur / rangeH) * 100
-  return {
+  const cols = item._cols || 1
+  const col = item._col || 0
+  const style = {
     top: top + '%',
     height: h + '%',
     background: item.color || undefined
   }
+  if (cols > 1) {
+    style.left = `calc(${(col / cols) * 100}% + 2px)`
+    style.width = `calc(${(1 / cols) * 100}% - 4px)`
+  }
+  return style
+}
+
+function restStyle(rp) {
+  const rangeH = config.workEndHour - config.workStartHour
+  const top = ((rp.start - config.workStartHour) / rangeH) * 100
+  const h = ((rp.end - rp.start) / rangeH) * 100
+  return { top: top + '%', height: h + '%' }
 }
 
 // --- 月视图 ---
@@ -410,7 +464,11 @@ async function loadTasks() {
 
 async function saveConfig() {
   try {
-    await put('/config', { workStartHour: config.workStartHour, workEndHour: config.workEndHour })
+    await put('/config', {
+      workStartHour: config.workStartHour,
+      workEndHour: config.workEndHour,
+      restPeriods: config.restPeriods
+    })
     showConfig.value = false
     toast.success('配置已保存')
   } catch (e) { toast.error(e.message) }
@@ -442,6 +500,15 @@ function openAdd() {
   editingItem.value = null
   Object.assign(form, { ...defaultForm, date: new Date().toISOString().slice(0, 10) })
   showModal.value = true
+}
+
+function createTaskForSchedule() {
+  openTaskCreate({
+    onCreated: async (task) => {
+      await loadTasks()
+      form.taskId = task.id
+    }
+  })
 }
 
 async function saveItem() {
@@ -540,6 +607,20 @@ onMounted(async () => {
   transition: background var(--t-fast);
 }
 .hour-slot.drag-over { background: var(--c-primary-soft); }
+
+/* 休息时间背景色带 */
+.rest-block {
+  position: absolute; left: 0; right: 0;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 6px
+  );
+  pointer-events: none; z-index: 0;
+}
+.dark .rest-block {
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 6px
+  );
+}
 
 /* Schedule item on week view */
 .schedule-item {

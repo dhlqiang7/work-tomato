@@ -13,13 +13,14 @@
         <ScheduleView v-else-if="currentView === 'schedule'" />
       </main>
     </div>
+    <TaskCreateModal ref="taskCreateModal" />
     <Toast />
     <ShortcutHelp v-model="showShortcutHelp" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, provide } from 'vue'
 import AppHeader from './components/layout/AppHeader.vue'
 import Sidebar from './components/layout/Sidebar.vue'
 import TaskView from './views/TaskView.vue'
@@ -29,8 +30,12 @@ import StatsView from './views/StatsView.vue'
 import ReviewView from './views/ReviewView.vue'
 import WorkbenchView from './views/WorkbenchView.vue'
 import ScheduleView from './views/ScheduleView.vue'
+import TaskCreateModal from './components/common/TaskCreateModal.vue'
 import Toast from './components/common/Toast.vue'
 import ShortcutHelp from './components/common/ShortcutHelp.vue'
+
+const taskCreateModal = ref(null)
+provide('openTaskCreate', (opts) => taskCreateModal.value?.open(opts))
 
 const currentView = ref('tasks')
 const isDark = ref(false)

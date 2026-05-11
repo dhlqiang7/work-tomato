@@ -104,63 +104,6 @@
     </div>
     </template>
 
-    <!-- 新建/编辑弹窗 -->
-    <Modal v-model="showModal" :title="editingTask ? '编辑任务' : '新建任务'">
-      <form @submit.prevent="saveTask">
-        <div class="form-group">
-          <label class="form-label">任务标题 *</label>
-          <input v-model="form.title" class="input" placeholder="输入任务标题" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label">描述</label>
-          <textarea v-model="form.description" class="textarea" placeholder="补充说明（可选）"></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">工作背景</label>
-          <textarea v-model="form.background" class="textarea" placeholder="如：使用 Claude Code / IDEA 开发，当前在等待 CI 构建..." style="min-height:50px"></textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">所属项目</label>
-            <select v-model="form.projectId" class="select">
-              <option value="default">日常工作</option>
-              <option v-for="p in projects.filter(x => x.id !== 'default')" :key="p.id" :value="p.id">{{ p.title }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">优先级</label>
-            <select v-model="form.priority" class="select">
-              <option value="P0">P0 紧急</option>
-              <option value="P1">P1 高</option>
-              <option value="P2">P2 中</option>
-              <option value="P3">P3 低</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">截止时间</label>
-            <input v-model="form.deadline" class="input" type="datetime-local" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">预估番茄数</label>
-            <input v-model.number="form.estimatedPomodoros" class="input" type="number" min="0" max="20" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">标签（逗号分隔）</label>
-          <input v-model="tagsInput" class="input" placeholder="如：设计, 前端, 文档" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">关联人员（逗号分隔）</label>
-          <input v-model="peopleInput" class="input" placeholder="如：张三, 李四" />
-        </div>
-      </form>
-      <template #footer>
-        <button class="btn" @click="showModal = false">取消</button>
-        <button class="btn btn-primary" @click="saveTask">{{ editingTask ? '保存' : '创建' }}</button>
-      </template>
-    </Modal>
 
     <!-- 完成弹窗 -->
     <Modal v-model="showCompleteModal" title="完成工作" width="420px">
@@ -223,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, inject } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -237,15 +180,13 @@ const emit = defineEmits(['startPomodoro'])
 const confirmDialog = ref(null)
 const ctxMenu = ref(null)
 
+const openTaskCreate = inject('openTaskCreate')
+
 const tasks = ref([])
 const projects = ref([])
-const showModal = ref(false)
 const showCompleteModal = ref(false)
-const editingTask = ref(null)
 const completingTask = ref(null)
 const completeResult = ref('')
-const tagsInput = ref('')
-const peopleInput = ref('')
 
 const filter = reactive({ status: 'undone', projectId: '', priority: '', keyword: '' })
 let searchTimer = null
@@ -253,13 +194,6 @@ function onSearch() {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(load, 300)
 }
-
-const defaultForm = {
-  title: '', description: '', projectId: 'default',
-  priority: 'P2', deadline: '', estimatedPomodoros: 0,
-  tags: [], relatedPeople: [], background: ''
-}
-const form = reactive({ ...defaultForm })
 
 async function load() {
   loading.value = true
@@ -291,57 +225,12 @@ async function load() {
 }
 
 function openCreate() {
-  editingTask.value = null
-  Object.assign(form, defaultForm)
-  tagsInput.value = ''
-  peopleInput.value = ''
-  showModal.value = true
+  openTaskCreate({ onCreated: load })
 }
 
 function openEdit(task) {
   if (task.status === 'done') return
-  editingTask.value = task
-  Object.assign(form, {
-    title: task.title,
-    description: task.description || '',
-    projectId: task.projectId || 'default',
-    priority: task.priority || 'P2',
-    deadline: task.deadline ? task.deadline.slice(0, 16) : '',
-    estimatedPomodoros: task.estimatedPomodoros || 0,
-    background: task.background || '',
-  })
-  tagsInput.value = (task.tags || []).join(', ')
-  peopleInput.value = (task.relatedPeople || []).join(', ')
-  showModal.value = true
-}
-
-async function saveTask() {
-  if (!form.title.trim()) return
-  // 校验优先级
-  if (!['P0', 'P1', 'P2', 'P3'].includes(form.priority)) form.priority = 'P2'
-  // 校验预估番茄数
-  if (typeof form.estimatedPomodoros !== 'number' || form.estimatedPomodoros < 0) form.estimatedPomodoros = 0
-  if (form.estimatedPomodoros > 20) form.estimatedPomodoros = 20
-
-  const payload = {
-    ...form,
-    deadline: form.deadline || null,
-    tags: tagsInput.value ? tagsInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [],
-    relatedPeople: peopleInput.value ? peopleInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [],
-  }
-  try {
-    if (editingTask.value) {
-      await put(`/tasks/${editingTask.value.id}`, payload)
-      toast.success('任务已更新')
-    } else {
-      await post('/tasks', payload)
-      toast.success('任务已创建')
-    }
-    showModal.value = false
-    await load()
-  } catch (e) {
-    toast.error(e.message)
-  }
+  openTaskCreate({ task, onUpdated: load })
 }
 
 function toggleDone(task) {

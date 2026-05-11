@@ -172,12 +172,15 @@
     <Modal v-model="showAddDialog" title="添加任务到工作台" width="480px">
       <div class="form-group">
         <label class="form-label">选择任务</label>
-        <select v-model="addTaskId" class="select">
-          <option value="">-- 请选择 --</option>
-          <option v-for="t in availableTasks" :key="t.id" :value="t.id">
-            {{ t.priority }} | {{ t.title }}
-          </option>
-        </select>
+        <div style="display:flex;gap:8px">
+          <select v-model="addTaskId" class="select" style="flex:1">
+            <option value="">-- 请选择 --</option>
+            <option v-for="t in availableTasks" :key="t.id" :value="t.id">
+              {{ t.priority }} | {{ t.title }}
+            </option>
+          </select>
+          <button class="btn btn-sm" @click="createTaskForWorkbench">新建任务</button>
+        </div>
       </div>
       <template #footer>
         <button class="btn" @click="showAddDialog = false">取消</button>
@@ -211,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, inject } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -221,6 +224,7 @@ import StepNode from '@/components/common/StepNode.vue'
 
 const { get, post, put, del } = useApi()
 const toast = useToast()
+const openTaskCreate = inject('openTaskCreate')
 const confirmDialog = ref(null)
 const ctxMenu = ref(null)
 const loading = ref(true)
@@ -407,6 +411,18 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function createTaskForWorkbench() {
+  openTaskCreate({
+    onCreated: async (task) => {
+      await put('/tasks/' + task.id, { inWorkbench: true })
+      showAddDialog.value = false
+      addTaskId.value = ''
+      await load()
+      toast.success('任务已创建并加入工作台')
+    }
+  })
 }
 
 async function addToWorkbench() {
