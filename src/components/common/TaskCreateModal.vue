@@ -1,5 +1,5 @@
 <template>
-  <Modal v-model="show" :title="editing ? '编辑任务' : '新建任务'">
+  <Modal v-model="show" :title="editing ? '编辑任务' : '新建任务'" :z-index="10000">
     <form @submit.prevent="save">
       <div class="form-group">
         <label class="form-label">任务标题 *</label>

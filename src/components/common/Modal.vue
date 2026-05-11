@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="modelValue" class="modal-overlay" @click.self="$emit('update:modelValue', false)">
+      <div v-if="modelValue" class="modal-overlay" :style="{ zIndex }" @click.self="$emit('update:modelValue', false)">
         <div class="modal-content" :style="{ maxWidth: width }">
           <div v-if="title" class="modal-header">
             <h3 class="modal-title">{{ title }}</h3>
@@ -20,10 +20,11 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   modelValue: Boolean,
   title: { type: String, default: '' },
-  width: { type: String, default: '520px' }
+  width: { type: String, default: '520px' },
+  zIndex: { type: Number, default: 9000 }
 })
 defineEmits(['update:modelValue'])
 </script>
