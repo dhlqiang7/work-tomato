@@ -37,7 +37,9 @@
               <div v-for="h in hours" :key="h" class="hour-label">{{ String(h).padStart(2,'0') }}:00</div>
             </div>
             <div v-for="d in weekDays" :key="d.date" class="day-col" :class="{ today: d.isToday }"
-              @dragover.prevent @drop.prevent="onDayDrop(d, $event)">
+              @dragover.prevent="onDayDragOver(d, $event)"
+              @drop.prevent="onDayDrop(d, $event)"
+              @dragleave="onSlotDragLeave">
               <!-- 休息时间块 -->
               <div
                 v-for="(rp, ri) in config.restPeriods"
@@ -410,8 +412,30 @@ async function onSlotDrop(d, h, e) {
   }
 }
 
+function hourFromEvent(e) {
+  const col = e.currentTarget.closest ? e.currentTarget.closest('.day-col') : e.currentTarget
+  if (!col) return null
+  const rect = col.getBoundingClientRect()
+  const h = config.workStartHour + Math.floor((e.clientY - rect.top) / 60)
+  if (h < config.workStartHour || h >= config.workEndHour) return null
+  return h
+}
+
+function onDayDragOver(d, e) {
+  document.querySelectorAll('.hour-slot.drag-over').forEach(el => el.classList.remove('drag-over'))
+  const h = hourFromEvent(e)
+  if (h == null) return
+  const col = e.currentTarget.closest ? e.currentTarget.closest('.day-col') : e.currentTarget
+  const idx = h - config.workStartHour
+  const slot = col.querySelectorAll('.hour-slot')[idx]
+  if (slot) slot.classList.add('drag-over')
+}
+
 function onDayDrop(d, e) {
-  // handled by slot drop
+  document.querySelectorAll('.hour-slot.drag-over').forEach(el => el.classList.remove('drag-over'))
+  const h = hourFromEvent(e)
+  if (h == null) return
+  onSlotDrop(d, h, e)
 }
 
 // --- 拖拽边缘改时长 ---
