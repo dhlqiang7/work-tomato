@@ -82,13 +82,13 @@
             @click="openDayAdd(d.date)">
             <span class="mday-num">{{ d.dayNum }}</span>
             <div class="mday-section mday-am" @click.stop="openDayAdd(d.date, 'am')">
-              <div v-for="it in d.amItems" :key="it.id" class="mday-item" @click.stop="openEdit(it)">{{ it.title }}</div>
+              <div v-for="it in d.amItems" :key="it.id" class="mday-item" :style="{ background: it.color || 'var(--c-blue)' }" @click.stop="openEdit(it)">{{ it.title }}</div>
             </div>
             <div class="mday-section mday-pm" @click.stop="openDayAdd(d.date, 'pm')">
-              <div v-for="it in d.pmItems" :key="it.id" class="mday-item" @click.stop="openEdit(it)">{{ it.title }}</div>
+              <div v-for="it in d.pmItems" :key="it.id" class="mday-item" :style="{ background: it.color || 'var(--c-blue)' }" @click.stop="openEdit(it)">{{ it.title }}</div>
             </div>
             <div class="mday-section mday-ev" @click.stop="openDayAdd(d.date, 'ev')">
-              <div v-for="it in d.evItems" :key="it.id" class="mday-item" @click.stop="openEdit(it)">{{ it.title }}</div>
+              <div v-for="it in d.evItems" :key="it.id" class="mday-item" :style="{ background: it.color || 'var(--c-blue)' }" @click.stop="openEdit(it)">{{ it.title }}</div>
             </div>
           </div>
         </div>
@@ -99,31 +99,12 @@
     <!-- 新增/编辑弹窗 -->
     <Modal v-model="showModal" :title="editingItem ? '编辑计划' : '新增计划'" width="480px">
       <div class="form-group">
-        <label class="form-label">来源</label>
-        <select v-model="form.source" class="select" @change="onSourceChange">
-          <option value="new">新建独立计划</option>
-          <option value="task">关联已有任务</option>
+        <label class="form-label">选择任务 *</label>
+        <select v-model="form.taskId" class="select" :disabled="!!editingItem">
+          <option value="">-- 请选择 --</option>
+          <option v-for="t in pendingTasks" :key="t.id" :value="t.id">{{ t.priority }} | {{ t.title }}</option>
         </select>
       </div>
-      <template v-if="form.source === 'task'">
-        <div class="form-group">
-          <label class="form-label">选择任务</label>
-          <select v-model="form.taskId" class="select">
-            <option value="">-- 请选择 --</option>
-            <option v-for="t in pendingTasks" :key="t.id" :value="t.id">{{ t.priority }} | {{ t.title }}</option>
-          </select>
-        </div>
-      </template>
-      <template v-else>
-        <div class="form-group">
-          <label class="form-label">标题 *</label>
-          <input v-model="form.title" class="input" placeholder="计划标题" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">描述</label>
-          <input v-model="form.description" class="input" placeholder="可选描述" />
-        </div>
-      </template>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">日期</label>
@@ -210,8 +191,7 @@ const config = reactive({ workStartHour: 9, workEndHour: 22 })
 const colors = ['#D94F3B','#E8943A','#5B8C5A','#4A8FBF','#9B59B6','#1ABC9C','#34495E']
 
 const defaultForm = {
-  source: 'new', taskId: '', title: '', description: '',
-  date: '', startHour: 9, endHour: 10, color: ''
+  taskId: '', date: '', startHour: 9, endHour: 10, color: ''
 }
 const form = reactive({ ...defaultForm })
 
@@ -337,22 +317,29 @@ async function onSlotDrop(d, h, e) {
   if (!itemId) return
   dragState.value = {}
 
+  const original = allItems.value.find(i => i.id === itemId)
+  if (!original) return
+  const durH = (original.endHour + original.endMinute / 60) - (original.startHour + original.startMinute / 60)
+  let newEnd = h + durH
+  if (newEnd > config.workEndHour) newEnd = config.workEndHour
+  const endH = Math.floor(newEnd)
+  const endM = Math.round((newEnd - endH) * 60)
+
   if (ctrl && fromDate !== d.date) {
-    // Ctrl+拖拽 → 复制到新天
-    const original = allItems.value.find(i => i.id === itemId)
-    if (original) {
-      try {
-        await post('/schedule', {
-          title: original.title, description: original.description,
-          taskId: original.taskId, date: d.date, startHour: h, endHour: h + 1, color: original.color
-        })
-        await loadItems()
-      } catch (e) { toast.error(e.message) }
-    }
-  } else {
-    // 普通拖拽 → 修改日期/时间
     try {
-      await put('/schedule/' + itemId, { date: d.date, startHour: h, endHour: h + 1 })
+      await post('/schedule', {
+        title: original.title, description: original.description,
+        taskId: original.taskId, date: d.date,
+        startHour: h, startMinute: 0, endHour: endH, endMinute: endM,
+        color: original.color
+      })
+      await loadItems()
+    } catch (e) { toast.error(e.message) }
+  } else {
+    try {
+      await put('/schedule/' + itemId, {
+        date: d.date, startHour: h, startMinute: 0, endHour: endH, endMinute: endM
+      })
       await loadItems()
     } catch (e) { toast.error(e.message) }
   }
@@ -425,10 +412,6 @@ async function saveConfig() {
 }
 
 // --- 新增/编辑 ---
-function onSourceChange() {
-  if (form.source === 'task') { loadTasks() }
-}
-
 function openDayAdd(date, period) {
   let sh = 9, eh = 10
   if (period === 'am') { sh = 9; eh = 10 }
@@ -442,13 +425,11 @@ function openDayAdd(date, period) {
 function openEdit(item) {
   editingItem.value = item
   Object.assign(form, {
-    source: item.taskId ? 'task' : 'new',
     taskId: item.taskId || '',
-    title: item.title, description: item.description || '',
     date: item.date, startHour: item.startHour, endHour: item.endHour,
     color: item.color || ''
   })
-  if (item.taskId) loadTasks()
+  loadTasks()
   showModal.value = true
 }
 
@@ -459,16 +440,11 @@ function openAdd() {
 }
 
 async function saveItem() {
-  if (form.source === 'task') {
-    if (!form.taskId) return toast.warning('请选择任务')
-    const task = pendingTasks.value.find(t => t.id === form.taskId)
-    form.title = task?.title || ''
-  }
-  if (!form.title.trim()) return toast.warning('标题不能为空')
+  if (!form.taskId) return toast.warning('请选择任务')
+  const task = pendingTasks.value.find(t => t.id === form.taskId)
   const payload = {
-    taskId: form.source === 'task' ? form.taskId : null,
-    title: form.title.trim(),
-    description: form.description,
+    taskId: form.taskId,
+    title: task?.title || '',
     date: form.date, startHour: form.startHour, endHour: form.endHour,
     color: form.color || null
   }
@@ -621,7 +597,7 @@ onMounted(async () => {
 .mday-ev { background: rgba(52,73,94,0.08); }
 .mday-item {
   padding: 1px 2px; border-radius: 2px; margin-bottom: 1px;
-  background: var(--c-blue); color: #fff; white-space: nowrap;
+  color: #fff; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; cursor: pointer;
   font-size: 10px; line-height: 1.3;
 }
