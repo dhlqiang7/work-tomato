@@ -271,15 +271,15 @@ function getDayItems(date) {
 }
 
 function itemStyle(item) {
-  const rangeH = config.workEndHour - config.workStartHour
+  const SLOT_H = 60
   const dur = Math.max(item.endHour - item.startHour, 1)
-  const top = ((item.startHour - config.workStartHour) / rangeH) * 100
-  const h = (dur / rangeH) * 100
+  const top = (item.startHour - config.workStartHour) * SLOT_H
+  const h = dur * SLOT_H
   const cols = item._cols || 1
   const col = item._col || 0
   const style = {
-    top: top + '%',
-    height: h + '%',
+    top: top + 'px',
+    height: h + 'px',
     background: item.color || undefined
   }
   if (cols > 1) {
@@ -290,10 +290,10 @@ function itemStyle(item) {
 }
 
 function restStyle(rp) {
-  const rangeH = config.workEndHour - config.workStartHour
-  const top = ((rp.start - config.workStartHour) / rangeH) * 100
-  const h = ((rp.end - rp.start) / rangeH) * 100
-  return { top: top + '%', height: h + '%' }
+  const SLOT_H = 60
+  const top = (rp.start - config.workStartHour) * SLOT_H
+  const h = (rp.end - rp.start) * SLOT_H
+  return { top: top + 'px', height: h + 'px' }
 }
 
 // --- 月视图 ---
@@ -409,18 +409,13 @@ let resizeCleanup = null
 
 function onResizeStart(item, e) {
   const startY = e.clientY
-  const dayCol = e.target.closest('.day-col')
   item._resizing = true
   item._origEndH = item.endHour
 
   function onMove(ev) {
-    const rect = dayCol.getBoundingClientRect()
-    const totalHours = config.workEndHour - config.workStartHour
-    const pxPerHour = rect.height / totalHours
     const dy = ev.clientY - startY
-    // 吸附到整小时
-    const deltaH = Math.round(dy / pxPerHour)
-    // 至少1小时，不超过工作结束时间
+    // 每60px = 1小时
+    const deltaH = Math.round(dy / 60)
     const newEnd = Math.max(item.startHour + 1, Math.min(config.workEndHour, item._origEndH + deltaH))
     item.endHour = newEnd
     item.endMinute = 0
