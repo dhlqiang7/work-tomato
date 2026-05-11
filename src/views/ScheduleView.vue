@@ -197,7 +197,7 @@ const form = reactive({ ...defaultForm })
 
 const hours = computed(() => {
   const r = []
-  for (let h = config.workStartHour; h <= config.workEndHour; h++) r.push(h)
+  for (let h = config.workStartHour; h < config.workEndHour; h++) r.push(h)
   return r
 })
 
