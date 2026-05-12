@@ -11,6 +11,7 @@
         <button class="btn btn-sm btn-ghost" @click="navWeek(-1)">◀</button>
         <span class="week-label">{{ weekLabel }}</span>
         <button class="btn btn-sm btn-ghost" @click="navWeek(1)">▶</button>
+        <button v-if="viewMode === 'week'" class="btn btn-sm" @click="copyLastWeek">📋 复制上周</button>
         <button class="btn btn-sm btn-ghost" @click="showConfig = true" title="配置">⚙</button>
         <button class="btn" @click="openAdd">＋ 新增计划</button>
       </div>
@@ -349,6 +350,18 @@ const monthLabel = computed(() => {
 function navWeek(dir) { weekOffset.value += dir }
 function navMonth(dir) { monthOffset.value += dir }
 function goToday() { weekOffset.value = 0; monthOffset.value = 0 }
+
+async function copyLastWeek() {
+  const thisMonday = weekDays.value[0]?.date
+  if (!thisMonday) return
+  const lastMonday = new Date(new Date(thisMonday).getTime() - 7 * 86400000).toISOString().slice(0, 10)
+  if (!await confirmDialog.value?.show(`确定清空本周（${thisMonday}）计划并复制上周（${lastMonday}）计划？复制后的计划相互独立，修改不会互相影响。`)) return
+  try {
+    const result = await post('/schedule/copy-week', { fromWeekStart: lastMonday, toWeekStart: thisMonday })
+    await loadItems()
+    toast.success(`已复制 ${result.count} 条计划`)
+  } catch (e) { toast.error(e.message) }
+}
 
 // --- 拖拽（周视图） ---
 const dragState = ref({})

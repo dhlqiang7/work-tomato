@@ -60,6 +60,50 @@ router.put('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+function addDays(dateStr, days) {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+// 复制上周计划到本周
+router.post('/copy-week', async (req, res) => {
+  try {
+    const { fromWeekStart, toWeekStart } = req.body
+    if (!fromWeekStart || !toWeekStart) return res.status(400).json({ error: '缺少开始日期' })
+
+    const fromWeekEnd = addDays(fromWeekStart, 6)
+    const toWeekEnd = addDays(toWeekStart, 6)
+
+    let all = await items.getAll()
+    const sourceItems = all.filter(i => i.date >= fromWeekStart && i.date <= fromWeekEnd)
+
+    const targetIds = all.filter(i => i.date >= toWeekStart && i.date <= toWeekEnd).map(i => i.id)
+    for (const id of targetIds) await items.delete(id)
+
+    const now = new Date().toISOString()
+    const copied = []
+    for (const src of sourceItems) {
+      const srcDate = new Date(src.date)
+      const fromStart = new Date(fromWeekStart)
+      const diffDays = Math.round((srcDate - fromStart) / 86400000)
+      const newDate = addDays(toWeekStart, diffDays)
+
+      const newItem = {
+        id: uuidv4(), taskId: src.taskId, title: src.title,
+        description: (src.description || '').slice(0, 500),
+        date: newDate, startHour: src.startHour, startMinute: src.startMinute ?? 0,
+        endHour: src.endHour, endMinute: src.endMinute ?? 0, color: src.color || null,
+        createdAt: now, updatedAt: now
+      }
+      await items.create(newItem)
+      copied.push(newItem)
+    }
+
+    res.status(201).json({ count: copied.length, items: copied })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 // 删除
 router.delete('/:id', async (req, res) => {
   try {
