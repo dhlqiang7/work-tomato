@@ -497,8 +497,15 @@ function onResizeStart(item, e) {
 
 // --- 数据加载 ---
 async function loadItems() {
-  const start = weekDays.value[0]?.date || ''
-  const end = weekDays.value[6]?.date || ''
+  let start, end
+  if (viewMode.value === 'month') {
+    const days = monthDays.value
+    start = days[0]?.date || ''
+    end = days[days.length - 1]?.date || ''
+  } else {
+    start = weekDays.value[0]?.date || ''
+    end = weekDays.value[6]?.date || ''
+  }
   try {
     allItems.value = await get('/schedule?start=' + start + '&end=' + end)
   } catch (e) { toast.error('加载计划失败') }
@@ -603,6 +610,7 @@ function fmtTime(h, m) {
 
 watch(weekOffset, loadItems)
 watch(monthOffset, loadItems)
+watch(viewMode, loadItems)
 
 onMounted(async () => {
   await Promise.all([loadConfig(), loadItems(), loadTasks()])
