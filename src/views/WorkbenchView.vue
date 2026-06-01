@@ -30,6 +30,7 @@
             <div class="lane-title-row">
               <span class="lane-priority" :class="'priority-' + task.priority">{{ task.priority }}</span>
               <span class="lane-title">{{ task.title }}</span>
+              <button v-if="task.noteId" class="btn btn-sm btn-ghost" @click="goToNote(task.noteId)" title="关联笔记">📒</button>
               <button class="btn btn-sm btn-ghost" @click="toggleTaskCollapse(task)" :title="task._collapsed ? '展开已完成' : '折叠已完成'">{{ task._collapsed ? '▸' : '▾' }}</button>
               <button class="btn btn-sm btn-ghost" @click="removeFromWorkbench(task)" title="移出工作台">✕</button>
             </div>
@@ -225,6 +226,9 @@ import StepNode from '@/components/common/StepNode.vue'
 const { get, post, put, del } = useApi()
 const toast = useToast()
 const openTaskCreate = inject('openTaskCreate')
+const navigateToNote = inject('navigateToNote', null)
+
+function goToNote(noteId) { navigateToNote?.(noteId) }
 const confirmDialog = ref(null)
 const ctxMenu = ref(null)
 const loading = ref(true)

@@ -127,7 +127,7 @@ router.post('/', async (req, res) => {
 // 更新任务（白名单过滤字段）
 const TASK_UPDATE_FIELDS = ['title', 'description', 'projectId', 'priority', 'status',
   'tags', 'relatedPeople', 'deadline', 'reminderDismissed', 'reminderSnoozedUntil',
-  'estimatedPomodoros', 'completedPomodoros', 'totalFocusMinutes', 'background', 'inWorkbench']
+  'estimatedPomodoros', 'completedPomodoros', 'totalFocusMinutes', 'background', 'inWorkbench', 'noteId']
 
 router.put('/:id', async (req, res) => {
   try {

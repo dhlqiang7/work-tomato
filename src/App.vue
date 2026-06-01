@@ -11,6 +11,7 @@
         <ReviewView v-else-if="currentView === 'review'" />
         <WorkbenchView v-else-if="currentView === 'workbench'" />
         <ScheduleView v-else-if="currentView === 'schedule'" />
+        <NoteView ref="noteView" v-else-if="currentView === 'notes'" />
       </main>
     </div>
     <TaskCreateModal ref="taskCreateModal" />
@@ -30,19 +31,25 @@ import StatsView from './views/StatsView.vue'
 import ReviewView from './views/ReviewView.vue'
 import WorkbenchView from './views/WorkbenchView.vue'
 import ScheduleView from './views/ScheduleView.vue'
+import NoteView from './views/NoteView.vue'
 import TaskCreateModal from './components/common/TaskCreateModal.vue'
 import Toast from './components/common/Toast.vue'
 import ShortcutHelp from './components/common/ShortcutHelp.vue'
 
+const noteView = ref(null)
 const taskCreateModal = ref(null)
 provide('openTaskCreate', (opts) => taskCreateModal.value?.open(opts))
+provide('navigateToNote', (noteId) => {
+  currentView.value = 'notes'
+  setTimeout(() => noteView.value?.openNote(noteId), 100)
+})
 
 const currentView = ref('tasks')
 const isDark = ref(false)
 const pomodoroTarget = ref(null)
 const showShortcutHelp = ref(false)
 
-const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review', '6': 'workbench', '7': 'schedule' }
+const viewMap = { '1': 'tasks', '2': 'projects', '3': 'pomodoro', '4': 'stats', '5': 'review', '6': 'workbench', '7': 'schedule', '8': 'notes' }
 
 function toggleTheme() {
   isDark.value = !isDark.value

@@ -49,6 +49,13 @@
         <label class="form-label">关联人员（逗号分隔）</label>
         <input v-model="peopleInput" class="input" placeholder="如：张三, 李四" />
       </div>
+      <div class="form-group">
+        <label class="form-label">关联笔记</label>
+        <select v-model="form.noteId" class="select">
+          <option value="">-- 无 --</option>
+          <option v-for="n in notes" :key="n.id" :value="n.id">{{ n.title || '未命名' }}</option>
+        </select>
+      </div>
     </form>
     <template #footer>
       <button class="btn" @click="show = false">取消</button>
@@ -71,6 +78,7 @@ const editing = ref(false)
 const tagsInput = ref('')
 const peopleInput = ref('')
 const projects = ref([])
+const notes = ref([])
 const onCreated = ref(null)
 const onUpdated = ref(null)
 let editingId = null
@@ -78,7 +86,7 @@ let editingId = null
 const defaultForm = {
   title: '', description: '', projectId: 'default',
   priority: 'P2', deadline: '', estimatedPomodoros: 0,
-  tags: [], relatedPeople: [], background: ''
+  tags: [], relatedPeople: [], background: '', noteId: ''
 }
 const form = reactive({ ...defaultForm })
 
@@ -102,6 +110,7 @@ function open(opts = {}) {
       deadline: t.deadline ? t.deadline.slice(0, 16) : '',
       estimatedPomodoros: t.estimatedPomodoros || 0,
       background: t.background || '',
+      noteId: t.noteId || '',
     })
     tagsInput.value = (t.tags || []).join(', ')
     peopleInput.value = (t.relatedPeople || []).join(', ')
@@ -110,6 +119,7 @@ function open(opts = {}) {
   }
 
   loadProjects()
+  loadNotes()
   show.value = true
 }
 
@@ -118,6 +128,10 @@ async function loadProjects() {
     const all = await get('/projects')
     projects.value = all.filter(p => p.id !== 'default')
   } catch {}
+}
+
+async function loadNotes() {
+  try { notes.value = await get('/notes') } catch {}
 }
 
 async function save() {

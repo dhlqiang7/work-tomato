@@ -89,6 +89,7 @@
               </div>
             </div>
             <div class="task-actions" @click.stop>
+              <button v-if="task.noteId" class="btn btn-sm btn-ghost" @click="goToNote(task.noteId)" title="关联笔记">📒</button>
               <button class="btn btn-sm btn-ghost" @click="startPomodoro(task)" title="开始专注">🍅</button>
               <button class="btn btn-sm btn-ghost" @click="openSteps(task)" title="步骤分解">📋</button>
               <button class="btn btn-sm btn-ghost" @click="confirmDelete(task)" title="删除">🗑️</button>
@@ -181,6 +182,9 @@ const confirmDialog = ref(null)
 const ctxMenu = ref(null)
 
 const openTaskCreate = inject('openTaskCreate')
+const navigateToNote = inject('navigateToNote', null)
+
+function goToNote(noteId) { navigateToNote?.(noteId) }
 
 const tasks = ref([])
 const projects = ref([])

@@ -10,6 +10,8 @@ import pomodoroRoutes from './routes/pomodoros.js'
 import statsRoutes from './routes/stats.js'
 import stepRoutes from './routes/steps.js'
 import scheduleRoutes from './routes/schedule.js'
+import noteRoutes from './routes/notes.js'
+import noteCategoryRoutes from './routes/note_categories.js'
 import configRoutes from './routes/config.js'
 import { initDefaultProject } from './store/base.js'
 
@@ -43,6 +45,8 @@ export async function startServer({ silent = false } = {}) {
 app.use('/api/steps', stepRoutes)
 app.use('/api/schedule', scheduleRoutes)
 app.use('/api/config', configRoutes)
+app.use('/api/notes', noteRoutes)
+app.use('/api/note-categories', noteCategoryRoutes)
 
   const isDev = process.argv.includes('--dev')
 
