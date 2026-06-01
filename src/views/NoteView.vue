@@ -98,7 +98,7 @@
             @input="onContentChange"
           ></textarea>
           <div class="note-preview-pane">
-            <MarkdownViewer :content="currentNote.content" @click="readMode = true" />
+            <MarkdownViewer :content="currentNote.content" />
           </div>
         </div>
 
@@ -114,6 +114,17 @@
     </div>
 
     <div v-else class="loading-state">加载中...</div>
+
+    <!-- 分类输入弹窗 -->
+    <Modal v-model="showCatInput" :title="catInputAction === 'add' ? '新建分类' : '编辑分类'" width="360px">
+      <div class="form-group">
+        <input v-model="catInputTitle" class="input" placeholder="输入分类名称" @keyup.enter="confirmCatInput" />
+      </div>
+      <template #footer>
+        <button class="btn" @click="showCatInput = false">取消</button>
+        <button class="btn btn-primary" @click="confirmCatInput">确定</button>
+      </template>
+    </Modal>
 
     <!-- 关联任务弹窗 -->
     <Modal v-model="showLinkTasks" title="关联任务" width="480px">
@@ -169,6 +180,10 @@ const allTasks = ref([])
 const showLinkTasks = ref(false)
 const taskSearch = ref('')
 const linkTaskIds = ref([])
+const showCatInput = ref(false)
+const catInputTitle = ref('')
+const catInputAction = ref('add')
+const catInputTarget = ref(null)
 
 let saveTimer = null
 
@@ -281,11 +296,23 @@ async function deleteCurrent() {
 }
 
 // 分类操作
-async function addCategory() {
-  const title = prompt('分类名称：')
-  if (!title?.trim()) return
+function addCategory() {
+  catInputAction.value = 'add'
+  catInputTitle.value = ''
+  catInputTarget.value = null
+  showCatInput.value = true
+}
+
+async function confirmCatInput() {
+  const title = catInputTitle.value.trim()
+  if (!title) return
+  showCatInput.value = false
   try {
-    await post('/note-categories', { title: title.trim() })
+    if (catInputAction.value === 'add') {
+      await post('/note-categories', { title })
+    } else if (catInputTarget.value) {
+      await put('/note-categories/' + catInputTarget.value.id, { title })
+    }
     await loadCategories()
   } catch (e) { toast.error(e.message) }
 }
@@ -296,11 +323,10 @@ async function onCatContextMenu(cat, event) {
     { label: '删除', icon: '🗑️', action: 'delete', danger: true },
   ], event)
   if (action === 'edit') {
-    const title = prompt('新名称：', cat.title)
-    if (title?.trim()) {
-      await put('/note-categories/' + cat.id, { title: title.trim() })
-      await loadCategories()
-    }
+    catInputAction.value = 'edit'
+    catInputTitle.value = cat.title
+    catInputTarget.value = cat
+    showCatInput.value = true
   } else if (action === 'delete') {
     if (!await confirmDialog.value?.show(`删除分类「${cat.title}」？笔记将归为"全部"。`)) return
     await del('/note-categories/' + cat.id)
@@ -477,7 +503,6 @@ onMounted(load)
 }
 .note-preview-pane {
   width: 50%; padding: var(--sp-3); overflow-y: auto;
-  cursor: pointer;
 }
 
 /* 阅读模式 */
