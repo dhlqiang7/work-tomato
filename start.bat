@@ -9,7 +9,7 @@ echo.
 :: Build if needed
 if not exist "%~dp0dist\index.html" (
     echo   First run, building...
-    call npm install
+    call npm install --verbose
     call npx vite build
     if %errorlevel% neq 0 (
         echo   [ERROR] Build failed, run install.bat first

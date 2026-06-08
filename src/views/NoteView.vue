@@ -4,6 +4,12 @@
     <div class="view-toolbar">
       <h2 class="view-title">笔记</h2>
       <div class="toolbar-actions">
+        <select class="select theme-select" v-model="mdTheme">
+          <option value="default">暖色主题</option>
+          <option value="classic">GitHub 风格</option>
+          <option value="minimal">极简黑白</option>
+          <option value="dark-prose">深色阅读</option>
+        </select>
         <button class="btn" @click="createNote">＋ 新建笔记</button>
       </div>
     </div>
@@ -74,6 +80,9 @@
             <button class="btn btn-sm btn-ghost" :class="{ active: currentNote.pinned }"
               title="置顶" @click="togglePin">📌</button>
             <button class="btn btn-sm btn-ghost" @click="showLinkTasks = true" title="关联任务">🔗</button>
+            <button v-if="!readMode" class="btn btn-sm btn-ghost" title="格式化" @click="formatMarkdown">¶</button>
+            <button v-if="!readMode" class="btn btn-sm btn-ghost" :class="{ active: showWhitespace }"
+              title="显示空白字符" @click="showWhitespace = !showWhitespace">·</button>
             <button class="btn btn-sm btn-ghost" @click="deleteCurrent" title="删除">🗑</button>
           </div>
         </div>
@@ -91,20 +100,27 @@
 
         <!-- 编辑模式 -->
         <div v-if="!readMode" class="edit-split">
-          <textarea
-            v-model="currentNote.content"
-            class="note-textarea"
-            placeholder="支持 Markdown 和 Mermaid 语法..."
-            @input="onContentChange"
-          ></textarea>
+          <div class="editor-wrapper" :class="{ 'show-ws': showWhitespace }">
+            <pre v-if="showWhitespace" class="whitespace-backdrop" aria-hidden="true"
+              ref="wsBackdrop"><code v-html="whitespaceContent"></code><br></pre>
+            <textarea
+              ref="textareaEl"
+              v-model="currentNote.content"
+              class="note-textarea"
+              :class="{ 'text-transparent': showWhitespace }"
+              placeholder="支持 Markdown 和 Mermaid 语法..."
+              @input="onContentChange"
+              @scroll="onTextareaScroll"
+            ></textarea>
+          </div>
           <div class="note-preview-pane">
-            <MarkdownViewer :content="currentNote.content" />
+            <MarkdownViewer :content="currentNote.content" :theme="mdTheme" />
           </div>
         </div>
 
         <!-- 阅读模式 -->
         <div v-else class="read-full">
-          <MarkdownViewer :content="currentNote.content" />
+          <MarkdownViewer :content="currentNote.content" :theme="mdTheme" />
         </div>
       </div>
 
@@ -184,8 +200,16 @@ const showCatInput = ref(false)
 const catInputTitle = ref('')
 const catInputAction = ref('add')
 const catInputTarget = ref(null)
+// Markdown 主题（localStorage 持久化）
+const mdTheme = ref(localStorage.getItem('mdTheme') || 'default')
+const showWhitespace = ref(false)
+const textareaEl = ref(null)
+const wsBackdrop = ref(null)
 
 let saveTimer = null
+
+// 主题变化时自动持久化
+watch(mdTheme, (v) => { localStorage.setItem('mdTheme', v) })
 
 const filteredNotes = computed(() => {
   let list = notes.value
@@ -212,6 +236,64 @@ const filteredTasks = computed(() => {
   const kw = taskSearch.value.toLowerCase()
   return allTasks.value.filter(t => t.title.toLowerCase().includes(kw))
 })
+
+// 空白字符可视化：将空格渲染为 ·，tab 渲染为 →\x20\x20\x20
+const whitespaceContent = computed(() => {
+  const text = currentNote.value?.content || ''
+  return escapeHtmlWS(text)
+})
+
+function escapeHtmlWS(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\t/g, '<span class="ws-tab">→\x20\x20\x20</span>')
+    .replace(/ /g, '<span class="ws-space">·</span>')
+}
+
+function onTextareaScroll() {
+  if (wsBackdrop.value) {
+    wsBackdrop.value.scrollTop = textareaEl.value?.scrollTop || 0
+    wsBackdrop.value.scrollLeft = textareaEl.value?.scrollLeft || 0
+  }
+}
+
+// Markdown 自动格式化
+function formatMarkdown() {
+  if (!currentNote.value) return
+  let text = currentNote.value.content || ''
+
+  // 1. Tab → 4 空格
+  text = text.replace(/\t/g, '\x20\x20\x20\x20')
+
+  // 2. 去除行尾空白
+  text = text.replace(/[ \t]+$/gm, '')
+
+  // 3. 统一无序列表符号为 -
+  text = text.replace(/^(\s*)[*+]\s/gm, '$1- ')
+
+  // 4. 标题前后确保空行
+  text = text.replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
+  text = text.replace(/(#{1,6}\s[^\n]+)\n([^\n#])/g, '$1\n\n$2')
+
+  // 5. 代码块前后确保空行
+  text = text.replace(/([^\n])\n(```)/g, '$1\n\n$2')
+  text = text.replace(/(```)\n([^\n`])/g, '$1\n\n$2')
+
+  // 6. 水平线前后确保空行
+  text = text.replace(/([^\n])\n(---)/g, '$1\n\n$2')
+  text = text.replace(/(---)\n([^\n])/g, '$1\n\n$2')
+
+  // 7. 确保文件末尾一个换行
+  text = text.replace(/\n*$/, '\n')
+
+  // 8. 合并多个连续空行为双空行
+  text = text.replace(/\n{3,}/g, '\n\n')
+
+  currentNote.value.content = text
+  onContentChange()
+}
 
 async function loadCategories() {
   try { categories.value = await get('/note-categories') } catch {}
@@ -544,4 +626,40 @@ onMounted(load)
 .task-check-item input { accent-color: var(--c-primary); }
 
 .text-muted { color: var(--c-text-3); }
+
+/* 主题选择器 */
+.theme-select {
+  width: auto; min-width: 110px; height: 32px;
+  font-size: var(--fs-xs); padding: 0 28px 0 10px;
+  background-position: right 8px center;
+}
+
+/* 编辑器空白字符可视化 */
+.editor-wrapper {
+  position: relative; width: 50%; border-right: 1px solid var(--c-border);
+}
+.whitespace-backdrop {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  margin: 0; padding: var(--sp-3);
+  font-family: var(--f-mono); font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed); color: var(--c-text);
+  overflow: hidden; pointer-events: none;
+  white-space: pre-wrap; word-wrap: break-word;
+  background: transparent;
+}
+.whitespace-backdrop code {
+  font-family: inherit; font-size: inherit; line-height: inherit;
+  background: none; padding: 0; border: none;
+}
+.ws-space { color: var(--c-border-2); }
+.ws-tab { color: var(--c-text-3); font-size: 0.85em; }
+.note-textarea.text-transparent {
+  color: transparent; caret-color: var(--c-primary);
+}
+/* 空白字符模式下的 textarea 调整 */
+.editor-wrapper.show-ws .note-textarea {
+  width: 100%; border-right: none;
+  position: relative; z-index: 1;
+  background: transparent;
+}
 </style>

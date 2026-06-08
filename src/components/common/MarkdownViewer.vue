@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-body" ref="bodyEl" v-html="rendered" @click="onClick"></div>
+  <div class="markdown-body" :class="'md-theme-' + theme" ref="bodyEl" v-html="rendered" @click="onClick"></div>
 </template>
 
 <script setup>
@@ -7,7 +7,8 @@ import { ref, watch, onMounted, nextTick } from 'vue'
 import { marked } from 'marked'
 
 const props = defineProps({
-  content: { type: String, default: '' }
+  content: { type: String, default: '' },
+  theme: { type: String, default: 'default' }
 })
 
 const emit = defineEmits(['click'])
@@ -62,50 +63,186 @@ onMounted(render)
 </script>
 
 <style>
+/* ══════ 基础样式（default 主题继承这些） ══════ */
 .markdown-body { line-height: var(--lh-relaxed); color: var(--c-text); word-break: break-word; }
 
-.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4 {
-  font-family: var(--f-display); font-weight: var(--fw-semibold);
-  margin: 1.2em 0 0.5em; color: var(--c-text);
+.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6 {
+  font-weight: var(--fw-semibold); margin: 1.2em 0 0.5em;
+  color: var(--c-text); line-height: 1.3;
 }
-.markdown-body h1 { font-size: 1.5em; border-bottom: 2px solid var(--c-border); padding-bottom: 0.3em; }
-.markdown-body h2 { font-size: 1.3em; border-bottom: 1px solid var(--c-border); padding-bottom: 0.2em; }
-.markdown-body h3 { font-size: 1.1em; }
-.markdown-body h4 { font-size: 1em; }
+.markdown-body h1 { font-size: 1.6em; }
+.markdown-body h2 { font-size: 1.35em; }
+.markdown-body h3 { font-size: 1.15em; }
+.markdown-body h4 { font-size: 1.05em; }
+.markdown-body h5 { font-size: 0.95em; }
+.markdown-body h6 { font-size: 0.85em; color: var(--c-text-2); }
 
 .markdown-body p { margin: 0.6em 0; }
 
 .markdown-body ul,.markdown-body ol { padding-left: 1.5em; margin: 0.5em 0; }
 .markdown-body li { margin: 0.2em 0; }
+.markdown-body li > p { margin: 0.2em 0; }
 
 .markdown-body code {
-  background: var(--c-bg); padding: 2px 6px; border-radius: 4px;
+  padding: 2px 6px; border-radius: 4px;
   font-family: var(--f-mono); font-size: 0.9em;
 }
 .markdown-body pre {
-  background: var(--c-bg); padding: var(--sp-3); border-radius: var(--radius-md);
-  overflow-x: auto; margin: 0.6em 0; border: 1px solid var(--c-border);
+  padding: var(--sp-3); border-radius: var(--radius-md);
+  overflow-x: auto; margin: 0.6em 0;
 }
-.markdown-body pre code { background: none; padding: 0; }
+.markdown-body pre code { background: none; padding: 0; font-size: 0.88em; }
 
 .markdown-body blockquote {
   border-left: 3px solid var(--c-blue); margin: 0.6em 0;
-  padding: 0.3em 1em; color: var(--c-text-2); background: var(--c-bg);
+  padding: 0.3em 1em; color: var(--c-text-2);
 }
-.markdown-body table { border-collapse: collapse; width: 100%; margin: 0.6em 0; }
+.markdown-body blockquote > :first-child { margin-top: 0; }
+.markdown-body blockquote > :last-child { margin-bottom: 0; }
+
+.markdown-body table { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
 .markdown-body th,.markdown-body td {
-  border: 1px solid var(--c-border); padding: 6px 12px; text-align: left;
+  border: 1px solid var(--c-border); padding: 8px 12px; text-align: left;
 }
-.markdown-body th { background: var(--c-bg); font-weight: var(--fw-semibold); }
-.markdown-body a { color: var(--c-blue); text-decoration: underline; }
+.markdown-body th { font-weight: var(--fw-semibold); }
+
+.markdown-body a { text-decoration: underline; text-underline-offset: 2px; }
+.markdown-body a:hover { opacity: 0.8; }
 
 .markdown-body img { max-width: 100%; border-radius: var(--radius-md); }
 
-.markdown-body hr { border: none; border-top: 1px solid var(--c-border); margin: 1em 0; }
+.markdown-body hr { border: none; border-top: 1px solid var(--c-border); margin: 1.2em 0; }
+
+.markdown-body strong { font-weight: var(--fw-bold); color: var(--c-text); }
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 6px; accent-color: var(--c-primary);
+  transform: translateY(1px);
+}
 
 /* Mermaid */
-.mermaid-svg { text-align: center; overflow-x: auto; margin: 0.6em 0; }
+.mermaid-svg { text-align: center; overflow-x: auto; margin: 0.8em 0; }
 .mermaid-svg svg { max-width: 100%; }
 .mermaid-error { border-left: 3px solid var(--c-red, #D94F3B) !important; opacity: 0.7; }
 .mermaid-error::before { content: "⚠ Mermaid 语法错误"; display: block; color: var(--c-red, #D94F3B); font-size: 0.8em; margin-bottom: 4px; }
+
+
+/* ══════ 主题：default（暖色工作室，当前默认） ══════ */
+.md-theme-default .markdown-body h1 { border-bottom: 2px solid var(--c-border); padding-bottom: 0.3em; }
+.md-theme-default .markdown-body h2 { border-bottom: 1px solid var(--c-border); padding-bottom: 0.2em; }
+.md-theme-default .markdown-body h1,.md-theme-default .markdown-body h2,.md-theme-default .markdown-body h3,
+.md-theme-default .markdown-body h4,.md-theme-default .markdown-body h5,.md-theme-default .markdown-body h6 {
+  font-family: var(--f-display);
+}
+.md-theme-default .markdown-body code { background: var(--c-bg); color: var(--c-primary); }
+.md-theme-default .markdown-body pre { background: var(--c-bg); border: 1px solid var(--c-border); }
+.md-theme-default .markdown-body blockquote { background: var(--c-bg); }
+.md-theme-default .markdown-body th { background: var(--c-bg); }
+.md-theme-default .markdown-body a { color: var(--c-blue); }
+
+
+/* ══════ 主题：classic（GitHub 风格） ══════ */
+.md-theme-classic .markdown-body {
+  font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 15px; line-height: 1.65;
+}
+.md-theme-classic .markdown-body h1,.md-theme-classic .markdown-body h2,.md-theme-classic .markdown-body h3,
+.md-theme-classic .markdown-body h4,.md-theme-classic .markdown-body h5,.md-theme-classic .markdown-body h6 {
+  font-family: inherit; font-weight: 600;
+}
+.md-theme-classic .markdown-body h1 { font-size: 1.9em; border-bottom: 1px solid #d0d7de; padding-bottom: 0.3em; }
+.md-theme-classic .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: 0.25em; }
+.md-theme-classic .markdown-body h3 { font-size: 1.25em; }
+.md-theme-classic .markdown-body h4 { font-size: 1.05em; }
+.md-theme-classic .markdown-body code {
+  background: #f0f0f0; color: #d63384; padding: 2px 6px; border-radius: 6px; font-size: 0.88em;
+}
+.md-theme-classic .markdown-body pre {
+  background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+}
+.md-theme-classic .markdown-body pre code { color: #1f2328; }
+.md-theme-classic .markdown-body blockquote {
+  border-left: 4px solid #d0d7de; color: #656d76; background: none;
+}
+.md-theme-classic .markdown-body th { background: #f6f8fa; }
+.md-theme-classic .markdown-body a { color: #0969da; }
+.md-theme-classic .markdown-body strong { color: #1f2328; }
+
+/* classic dark */
+.dark .md-theme-classic .markdown-body code { background: #2d333b; color: #f2a8cd; }
+.dark .md-theme-classic .markdown-body pre { background: #1c2128; border-color: #444c56; }
+.dark .md-theme-classic .markdown-body pre code { color: #e6edf3; }
+.dark .md-theme-classic .markdown-body blockquote { border-color: #444c56; color: #8b949e; background: none; }
+.dark .md-theme-classic .markdown-body th { background: #1c2128; }
+.dark .md-theme-classic .markdown-body a { color: #71b7ff; }
+.dark .md-theme-classic .markdown-body strong { color: #e6edf3; }
+
+
+/* ══════ 主题：minimal（极简，高对比） ══════ */
+.md-theme-minimal .markdown-body {
+  font-family: var(--f-body); font-size: 14px; line-height: 1.75; color: #1a1a1a;
+}
+.md-theme-minimal .markdown-body h1,.md-theme-minimal .markdown-body h2,.md-theme-minimal .markdown-body h3,
+.md-theme-minimal .markdown-body h4,.md-theme-minimal .markdown-body h5,.md-theme-minimal .markdown-body h6 {
+  font-family: var(--f-body); font-weight: 700; color: #111; border: none;
+}
+.md-theme-minimal .markdown-body h1 { font-size: 1.8em; margin-top: 1.5em; }
+.md-theme-minimal .markdown-body h2 { font-size: 1.4em; margin-top: 1.3em; }
+.md-theme-minimal .markdown-body h3 { font-size: 1.15em; margin-top: 1em; }
+.md-theme-minimal .markdown-body code {
+  background: #f5f5f5; color: #333; padding: 2px 4px; border-radius: 3px;
+  font-size: 0.9em; border: 1px solid #e5e5e5;
+}
+.md-theme-minimal .markdown-body pre {
+  background: #fafafa; border: 1px solid #e5e5e5; border-radius: 4px;
+}
+.md-theme-minimal .markdown-body blockquote {
+  border-left: 2px solid #333; color: #555; background: none;
+}
+.md-theme-minimal .markdown-body th { background: #f5f5f5; }
+.md-theme-minimal .markdown-body a { color: #000; text-underline-offset: 3px; }
+.md-theme-minimal .markdown-body hr { border-top: 1px solid #ddd; }
+
+/* minimal dark */
+.dark .md-theme-minimal .markdown-body { color: #ddd; }
+.dark .md-theme-minimal .markdown-body h1,.dark .md-theme-minimal .markdown-body h2,
+.dark .md-theme-minimal .markdown-body h3,.dark .md-theme-minimal .markdown-body h4,
+.dark .md-theme-minimal .markdown-body h5,.dark .md-theme-minimal .markdown-body h6 { color: #f0f0f0; }
+.dark .md-theme-minimal .markdown-body code { background: #222; color: #ddd; border-color: #444; }
+.dark .md-theme-minimal .markdown-body pre { background: #1a1a1a; border-color: #444; }
+.dark .md-theme-minimal .markdown-body blockquote { border-left-color: #888; color: #aaa; background: none; }
+.dark .md-theme-minimal .markdown-body th { background: #1a1a1a; }
+.dark .md-theme-minimal .markdown-body a { color: #fff; }
+.dark .md-theme-minimal .markdown-body hr { border-top-color: #444; }
+
+
+/* ══════ 主题：dark-prose（深色沉浸阅读） ══════ */
+.md-theme-dark-prose .markdown-body {
+  font-family: Georgia, 'Noto Serif CJK SC', 'Source Han Serif SC', 'STSong', serif;
+  font-size: 16px; line-height: 1.8; color: #d4cfc8;
+}
+.md-theme-dark-prose .markdown-body h1,.md-theme-dark-prose .markdown-body h2,.md-theme-dark-prose .markdown-body h3,
+.md-theme-dark-prose .markdown-body h4,.md-theme-dark-prose .markdown-body h5,.md-theme-dark-prose .markdown-body h6 {
+  font-family: Georgia, 'Noto Serif CJK SC', serif; font-weight: 600;
+  color: #f0ebe0; border: none;
+}
+.md-theme-dark-prose .markdown-body h1 { font-size: 1.7em; }
+.md-theme-dark-prose .markdown-body h2 { font-size: 1.35em; color: #e8b87a; }
+.md-theme-dark-prose .markdown-body h3 { font-size: 1.15em; color: #c9a87c; }
+.md-theme-dark-prose .markdown-body h4 { color: #b8a888; }
+.md-theme-dark-prose .markdown-body code {
+  background: #2a2520; color: #e8b87a; padding: 2px 6px; border-radius: 4px;
+}
+.md-theme-dark-prose .markdown-body pre {
+  background: #1e1b17; border: 1px solid #3a3530; border-radius: 6px;
+}
+.md-theme-dark-prose .markdown-body pre code { color: #c8c0b4; }
+.md-theme-dark-prose .markdown-body blockquote {
+  border-left: 3px solid #8a6d4b; color: #a09888; background: linear-gradient(90deg, #1e1b17 0%, transparent 100%);
+}
+.md-theme-dark-prose .markdown-body th { background: #2a2520; }
+.md-theme-dark-prose .markdown-body td,.md-theme-dark-prose .markdown-body th { border-color: #3a3530; }
+.md-theme-dark-prose .markdown-body a { color: #d4a76a; }
+.md-theme-dark-prose .markdown-body strong { color: #f0ebe0; }
+.md-theme-dark-prose .markdown-body hr { border-top: 1px solid #3a3530; }
 </style>
