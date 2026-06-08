@@ -7,6 +7,7 @@ cd "$(dirname "$0")"
 # 国内镜像加速（华为云）
 export ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
 export ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 
 echo ""
 echo "  🍅 Tomato - 打包桌面应用"

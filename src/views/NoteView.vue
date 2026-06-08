@@ -111,6 +111,7 @@
               placeholder="支持 Markdown 和 Mermaid 语法..."
               @input="onContentChange"
               @scroll="onTextareaScroll"
+              @mousedown="onTextareaClick"
             ></textarea>
           </div>
           <div class="note-preview-pane">
@@ -259,6 +260,43 @@ function onTextareaScroll() {
   }
 }
 
+// 点击行右侧空白区域时自动定位光标到行尾
+function onTextareaClick(e) {
+  const ta = textareaEl.value
+  if (!ta) return
+
+  const style = getComputedStyle(ta)
+  const pl = parseFloat(style.paddingLeft)
+  const pt = parseFloat(style.paddingTop)
+  const lh = parseFloat(style.lineHeight)
+
+  const rect = ta.getBoundingClientRect()
+  const x = e.clientX - rect.left - pl
+  const y = e.clientY - rect.top - pt + ta.scrollTop
+
+  const lineIdx = Math.floor(y / lh)
+  const lines = ta.value.split('\n')
+  if (lineIdx < 0 || lineIdx >= lines.length) return
+
+  const lineText = lines[lineIdx]
+  // 用 canvas 测量该行文本像素宽度
+  const cvs = document.createElement('canvas')
+  const ctx = cvs.getContext('2d')
+  ctx.font = `${style.fontSize} ${style.fontFamily}`
+  const textW = ctx.measureText(lineText).width
+
+  // 点击在文本右侧 → 光标移到行尾
+  if (x > textW) {
+    let pos = 0
+    for (let i = 0; i < lineIdx; i++) pos += lines[i].length + 1
+    pos += lineText.length
+    // 延迟到浏览器默认 mousedown 处理之后设置
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = pos
+    })
+  }
+}
+
 // Markdown 自动格式化
 function formatMarkdown() {
   if (!currentNote.value) return
@@ -267,10 +305,8 @@ function formatMarkdown() {
   // 1. Tab → 4 空格
   text = text.replace(/\t/g, '\x20\x20\x20\x20')
 
-  // 2. 去除行尾空白
-  text = text.replace(/[ \t]+$/gm, '')
-
-  // 3. 统一无序列表符号为 -
+  // 2. 统一无序列表符号为 -
+  // 注：不再删除行尾空白，Markdown 中行尾两空格代表换行
   text = text.replace(/^(\s*)[*+]\s/gm, '$1- ')
 
   // 4. 标题前后确保空行
@@ -599,7 +635,7 @@ onMounted(load)
   flex: 1; display: flex; overflow: hidden;
 }
 .note-textarea {
-  width: 50%; border: none; border-right: 1px solid var(--c-border); outline: none;
+  width: 100%; border: none; outline: none;
   resize: none; padding: var(--sp-3); font-family: var(--f-mono);
   font-size: var(--fs-sm); line-height: var(--lh-relaxed);
   color: var(--c-text); background: transparent;
@@ -658,7 +694,6 @@ onMounted(load)
 }
 /* 空白字符模式下的 textarea 调整 */
 .editor-wrapper.show-ws .note-textarea {
-  width: 100%; border-right: none;
   position: relative; z-index: 1;
   background: transparent;
 }

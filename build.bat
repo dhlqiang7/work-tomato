@@ -4,6 +4,7 @@ setlocal EnableDelayedExpansion
 
 set ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/
 set ELECTRON_BUILDER_BINARIES_MIRROR=https://mirrors.huaweicloud.com/electron-builder-binaries/
+set NODE_TLS_REJECT_UNAUTHORIZED=0
 
 :: Pre-load vendor binaries to electron-builder cache (requires 7-Zip)
 set "EB_CACHE=%LOCALAPPDATA%\electron-builder\Cache"
