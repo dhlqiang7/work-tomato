@@ -2,6 +2,7 @@
 # Tomato 安装脚本 (Linux/macOS)
 
 set -e
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 
 echo ""
 echo "  🍅 Tomato - 安装向导"

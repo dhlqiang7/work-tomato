@@ -3,6 +3,7 @@
 
 set -e
 cd "$(dirname "$0")"
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 
 echo ""
 echo "  🍅 Tomato - 启动中..."

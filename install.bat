@@ -1,6 +1,7 @@
 @echo off
 chcp 65001 >nul 2>nul
 setlocal EnableDelayedExpansion
+set NODE_TLS_REJECT_UNAUTHORIZED=0
 
 echo.
 echo   ╔══════════════════════════════════════╗
