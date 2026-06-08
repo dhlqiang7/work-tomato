@@ -1,9 +1,16 @@
 <template>
-  <div class="markdown-body" :class="'md-theme-' + theme" ref="bodyEl" v-html="rendered" @click="onClick"></div>
+  <div class="markdown-body"
+    :class="themeClass"
+    :style="customStyle"
+    ref="bodyEl"
+    v-html="rendered"
+    @click="onClick">
+    <!-- 自定义主题时动态注入子元素样式 -->
+  </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onUpdated } from 'vue'
 import { marked } from 'marked'
 
 const props = defineProps({
@@ -15,6 +22,86 @@ const emit = defineEmits(['click'])
 const bodyEl = ref(null)
 const rendered = ref('')
 let mermaidReady = false
+let customStyleEl = null
+
+// 自定义主题：theme 以 "custom-" 开头
+const isCustom = computed(() => props.theme.startsWith('custom-'))
+const themeClass = computed(() => isCustom.value ? 'md-theme-custom' : 'md-theme-' + props.theme)
+
+// 自定义主题的内联样式（仅作用于根元素）
+const customStyle = computed(() => {
+  if (!isCustom.value) return null
+  const theme = getCustomThemeData(props.theme)
+  if (!theme) return null
+  const s = {}
+  if (theme.fontFamily) s.fontFamily = theme.fontFamily
+  if (theme.fontSize) s.fontSize = theme.fontSize
+  if (theme.lineHeight) s.lineHeight = theme.lineHeight
+  if (theme.textColor) s.color = theme.textColor
+  return s
+})
+
+function getCustomThemeData(themeId) {
+  try {
+    const themes = JSON.parse(localStorage.getItem('mdCustomThemes') || '[]')
+    return themes.find(t => t.id === themeId)?.props || null
+  } catch { return null }
+}
+
+// 为自定义主题生成子元素 CSS 规则，注入到 <style>
+function injectCustomCSS() {
+  if (!isCustom.value) {
+    if (customStyleEl) { customStyleEl.textContent = ''; }
+    return
+  }
+  const p = getCustomThemeData(props.theme)
+  if (!p) return
+  if (!customStyleEl) {
+    customStyleEl = document.createElement('style')
+    customStyleEl.setAttribute('data-md-custom', '')
+    document.head.appendChild(customStyleEl)
+  }
+  const rules = []
+  const root = '.markdown-body.md-theme-custom'
+  // 标题
+  const hSelectors = [`${root} h1`, `${root} h2`, `${root} h3`, `${root} h4`, `${root} h5`, `${root} h6`].join(',')
+  let hRules = ''
+  if (p.hColor) hRules += `color:${p.hColor};`
+  if (p.hFontFamily) hRules += `font-family:${p.hFontFamily};`
+  if (hRules) rules.push(`${hSelectors}{${hRules}}`)
+  if (p.h1Size) rules.push(`${root} h1{font-size:${p.h1Size}}`)
+  if (p.h2Size) rules.push(`${root} h2{font-size:${p.h2Size}}`)
+  if (p.h1BorderBottom) rules.push(`${root} h1{border-bottom:${p.h1BorderBottom};padding-bottom:0.3em}`)
+  if (p.h2BorderBottom) rules.push(`${root} h2{border-bottom:${p.h2BorderBottom};padding-bottom:0.2em}`)
+  // 行内代码
+  if (p.codeBg || p.codeColor) {
+    let s = ''
+    if (p.codeBg) s += `background:${p.codeBg};`
+    if (p.codeColor) s += `color:${p.codeColor};`
+    rules.push(`${root} code{${s}}`)
+  }
+  // 代码块
+  if (p.preBg || p.preBorder) {
+    let s = ''
+    if (p.preBg) s += `background:${p.preBg};`
+    if (p.preBorder) s += `border:${p.preBorder};`
+    rules.push(`${root} pre{${s}}`)
+  }
+  if (p.preCodeColor) rules.push(`${root} pre code{color:${p.preCodeColor}}`)
+  // 引用
+  if (p.bqBorder || p.bqColor || p.bqBg) {
+    let s = ''
+    if (p.bqBorder) s += `border-left:${p.bqBorder};`
+    if (p.bqColor) s += `color:${p.bqColor};`
+    if (p.bqBg) s += `background:${p.bqBg};`
+    rules.push(`${root} blockquote{${s}}`)
+  }
+  if (p.thBg) rules.push(`${root} th{background:${p.thBg}}`)
+  if (p.linkColor) rules.push(`${root} a{color:${p.linkColor}}`)
+  if (p.strongColor) rules.push(`${root} strong{color:${p.strongColor}}`)
+  if (p.hrColor) rules.push(`${root} hr{border-top:${p.hrColor}}`)
+  customStyleEl.textContent = rules.join('\n')
+}
 
 async function renderMermaidBlocks() {
   if (!bodyEl.value) return
@@ -59,7 +146,9 @@ function onClick(e) {
 }
 
 watch(() => props.content, render)
-onMounted(render)
+watch(() => props.theme, () => { injectCustomCSS() })
+onMounted(() => { render(); injectCustomCSS() })
+onUpdated(injectCustomCSS)
 </script>
 
 <style>

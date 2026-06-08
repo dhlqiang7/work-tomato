@@ -4,12 +4,7 @@
     <div class="view-toolbar">
       <h2 class="view-title">笔记</h2>
       <div class="toolbar-actions">
-        <select class="select theme-select" v-model="mdTheme">
-          <option value="default">暖色主题</option>
-          <option value="classic">GitHub 风格</option>
-          <option value="minimal">极简黑白</option>
-          <option value="dark-prose">深色阅读</option>
-        </select>
+        <button class="btn btn-ghost btn-sm" @click="showThemeConfig = true" :title="'主题: ' + currentThemeName">🎨 主题</button>
         <button class="btn" @click="createNote">＋ 新建笔记</button>
       </div>
     </div>
@@ -168,6 +163,7 @@
 
     <ConfirmDialog ref="confirmDialog" />
     <ContextMenu ref="ctxMenu" />
+    <ThemeConfigModal v-model="showThemeConfig" :active-theme="mdTheme" @select="onThemeSelect" />
   </div>
 </template>
 
@@ -177,6 +173,7 @@ import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import ThemeConfigModal from '@/components/common/ThemeConfigModal.vue'
 import ContextMenu from '@/components/common/ContextMenu.vue'
 import MarkdownViewer from '@/components/common/MarkdownViewer.vue'
 
@@ -203,6 +200,23 @@ const catInputAction = ref('add')
 const catInputTarget = ref(null)
 // Markdown 主题（localStorage 持久化）
 const mdTheme = ref(localStorage.getItem('mdTheme') || 'default')
+const showThemeConfig = ref(false)
+
+// 主题显示名
+const THEME_NAMES = { default: '暖色工作室', classic: 'GitHub 风格', minimal: '极简黑白', 'dark-prose': '深色沉浸' }
+const currentThemeName = computed(() => {
+  if (THEME_NAMES[mdTheme.value]) return THEME_NAMES[mdTheme.value]
+  // 自定义主题
+  try {
+    const customs = JSON.parse(localStorage.getItem('mdCustomThemes') || '[]')
+    return customs.find(t => t.id === mdTheme.value)?.name || '自定义'
+  } catch { return '自定义' }
+})
+
+function onThemeSelect(themeId) {
+  mdTheme.value = themeId
+  showThemeConfig.value = false
+}
 const showWhitespace = ref(false)
 const textareaEl = ref(null)
 const wsBackdrop = ref(null)
@@ -639,6 +653,7 @@ onMounted(load)
   resize: none; padding: var(--sp-3); font-family: var(--f-mono);
   font-size: var(--fs-sm); line-height: var(--lh-relaxed);
   color: var(--c-text); background: transparent;
+  flex: 1; min-height: 0;
 }
 .note-preview-pane {
   width: 50%; padding: var(--sp-3); overflow-y: auto;
@@ -663,16 +678,10 @@ onMounted(load)
 
 .text-muted { color: var(--c-text-3); }
 
-/* 主题选择器 */
-.theme-select {
-  width: auto; min-width: 110px; height: 32px;
-  font-size: var(--fs-xs); padding: 0 28px 0 10px;
-  background-position: right 8px center;
-}
-
 /* 编辑器空白字符可视化 */
 .editor-wrapper {
   position: relative; width: 50%; border-right: 1px solid var(--c-border);
+  display: flex; flex-direction: column; min-height: 0;
 }
 .whitespace-backdrop {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
