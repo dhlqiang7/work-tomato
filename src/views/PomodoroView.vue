@@ -115,7 +115,8 @@ const phaseLabel = computed(() => {
 })
 
 async function load() {
-  pendingTasks.value = await get('/tasks?status=pending')
+  const allTasks = await get('/tasks')
+  pendingTasks.value = allTasks.filter(t => t.status !== 'done' && t.status !== 'archived')
   const stats = await get('/stats/dashboard')
   todayCount.value = stats.todayPomodoroCount
   todayMinutes.value = stats.todayFocusMinutes
