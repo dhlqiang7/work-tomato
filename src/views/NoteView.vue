@@ -155,7 +155,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, inject, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, watch, inject, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/common/Modal.vue'
@@ -192,6 +192,13 @@ const filteredNotes = computed(() => {
   if (activeCat.value) {
     list = list.filter(n => n.categoryId === activeCat.value)
   }
+  // 排序：置顶优先，然后按标题字典序
+  list = [...list].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+    const ta = (a.title || '').toLowerCase()
+    const tb = (b.title || '').toLowerCase()
+    return ta.localeCompare(tb, 'zh-CN')
+  })
   return list
 })
 
@@ -223,6 +230,20 @@ async function load() {
   await Promise.all([loadCategories(), loadNotes(), loadTasks()])
   loading.value = false
 }
+
+// 切换分类时，如果当前笔记不在新分类中，自动选第一篇
+watch(activeCat, async () => {
+  if (loading.value) return
+  await nextTick()
+  const list = filteredNotes.value
+  if (!list.length) {
+    currentNote.value = null
+    editingId.value = null
+    return
+  }
+  if (currentNote.value && list.find(n => n.id === currentNote.value.id)) return
+  selectNote(list[0])
+})
 
 function createNote() {
   currentNote.value = {
