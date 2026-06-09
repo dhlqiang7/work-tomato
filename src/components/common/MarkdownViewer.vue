@@ -48,6 +48,9 @@ function getCustomThemeData(themeId) {
   } catch { return null }
 }
 
+// 过滤 CSS 注入风险字符（防止用户输入 } ; { 破坏规则结构）
+function safeCSS(v) { return String(v).replace(/[{};]/g, '') }
+
 // 为自定义主题生成子元素 CSS 规则，注入到 <style>
 function injectCustomCSS() {
   if (!isCustom.value) {
@@ -66,40 +69,40 @@ function injectCustomCSS() {
   // 标题
   const hSelectors = [`${root} h1`, `${root} h2`, `${root} h3`, `${root} h4`, `${root} h5`, `${root} h6`].join(',')
   let hRules = ''
-  if (p.hColor) hRules += `color:${p.hColor};`
-  if (p.hFontFamily) hRules += `font-family:${p.hFontFamily};`
+  if (p.hColor) hRules += `color:${safeCSS(p.hColor)};`
+  if (p.hFontFamily) hRules += `font-family:${safeCSS(p.hFontFamily)};`
   if (hRules) rules.push(`${hSelectors}{${hRules}}`)
-  if (p.h1Size) rules.push(`${root} h1{font-size:${p.h1Size}}`)
-  if (p.h2Size) rules.push(`${root} h2{font-size:${p.h2Size}}`)
-  if (p.h1BorderBottom) rules.push(`${root} h1{border-bottom:${p.h1BorderBottom};padding-bottom:0.3em}`)
-  if (p.h2BorderBottom) rules.push(`${root} h2{border-bottom:${p.h2BorderBottom};padding-bottom:0.2em}`)
+  if (p.h1Size) rules.push(`${root} h1{font-size:${safeCSS(p.h1Size)}}`)
+  if (p.h2Size) rules.push(`${root} h2{font-size:${safeCSS(p.h2Size)}}`)
+  if (p.h1BorderBottom) rules.push(`${root} h1{border-bottom:${safeCSS(p.h1BorderBottom)};padding-bottom:0.3em}`)
+  if (p.h2BorderBottom) rules.push(`${root} h2{border-bottom:${safeCSS(p.h2BorderBottom)};padding-bottom:0.2em}`)
   // 行内代码
   if (p.codeBg || p.codeColor) {
     let s = ''
-    if (p.codeBg) s += `background:${p.codeBg};`
-    if (p.codeColor) s += `color:${p.codeColor};`
+    if (p.codeBg) s += `background:${safeCSS(p.codeBg)};`
+    if (p.codeColor) s += `color:${safeCSS(p.codeColor)};`
     rules.push(`${root} code{${s}}`)
   }
   // 代码块
   if (p.preBg || p.preBorder) {
     let s = ''
-    if (p.preBg) s += `background:${p.preBg};`
-    if (p.preBorder) s += `border:${p.preBorder};`
+    if (p.preBg) s += `background:${safeCSS(p.preBg)};`
+    if (p.preBorder) s += `border:${safeCSS(p.preBorder)};`
     rules.push(`${root} pre{${s}}`)
   }
-  if (p.preCodeColor) rules.push(`${root} pre code{color:${p.preCodeColor}}`)
+  if (p.preCodeColor) rules.push(`${root} pre code{color:${safeCSS(p.preCodeColor)}}`)
   // 引用
   if (p.bqBorder || p.bqColor || p.bqBg) {
     let s = ''
-    if (p.bqBorder) s += `border-left:${p.bqBorder};`
-    if (p.bqColor) s += `color:${p.bqColor};`
-    if (p.bqBg) s += `background:${p.bqBg};`
+    if (p.bqBorder) s += `border-left:${safeCSS(p.bqBorder)};`
+    if (p.bqColor) s += `color:${safeCSS(p.bqColor)};`
+    if (p.bqBg) s += `background:${safeCSS(p.bqBg)};`
     rules.push(`${root} blockquote{${s}}`)
   }
-  if (p.thBg) rules.push(`${root} th{background:${p.thBg}}`)
-  if (p.linkColor) rules.push(`${root} a{color:${p.linkColor}}`)
-  if (p.strongColor) rules.push(`${root} strong{color:${p.strongColor}}`)
-  if (p.hrColor) rules.push(`${root} hr{border-top:${p.hrColor}}`)
+  if (p.thBg) rules.push(`${root} th{background:${safeCSS(p.thBg)}}`)
+  if (p.linkColor) rules.push(`${root} a{color:${safeCSS(p.linkColor)}}`)
+  if (p.strongColor) rules.push(`${root} strong{color:${safeCSS(p.strongColor)}}`)
+  if (p.hrColor) rules.push(`${root} hr{border-top:${safeCSS(p.hrColor)}}`)
   customStyleEl.textContent = rules.join('\n')
 }
 
